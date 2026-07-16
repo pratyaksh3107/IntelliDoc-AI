@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes.ask_routes import router as ask_router
 
 from app.routes.upload_routes import router as upload_router
 from app.routes.search_routes import router as search_router
@@ -10,6 +11,7 @@ app = FastAPI()
 app.include_router(upload_router)
 app.include_router(search_router)
 app.include_router(document_router)
+app.include_router(ask_router)
 
 app.add_middleware(
     CORSMiddleware,

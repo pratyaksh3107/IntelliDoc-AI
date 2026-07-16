@@ -5,3 +5,5 @@ pypdf
 sentence-transformers
 chromadb
 google-generativeai
+numpy
+torch

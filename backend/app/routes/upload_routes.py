@@ -12,6 +12,7 @@ stored_chunks = []
 
 @router.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
+
     pdf_bytes = await file.read()
 
     file_path = os.path.join("uploads", file.filename)
@@ -23,16 +24,27 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     chunks = create_chunks(extracted_text)
 
-    embeddings = generate_embeddings(chunks)
+    clean_chunks = []
 
-    store_chunks(chunks, embeddings)
+    for chunk in chunks:
+        chunk = str(chunk)
+        chunk = chunk.replace("\x00", "")
+        chunk = chunk.replace("\ufffd", "")
+        chunk = chunk.strip()
+
+        if chunk:
+            clean_chunks.append(chunk)
+
+    embeddings = generate_embeddings(clean_chunks)
+
+    store_chunks(clean_chunks, embeddings)
 
     global stored_chunks
-    stored_chunks = chunks
+    stored_chunks = clean_chunks
 
     return {
         "filename": file.filename,
         "pages": total_pages,
-        "chunks": len(chunks),
+        "chunks": len(clean_chunks),
         "preview": extracted_text[:500]
     }
