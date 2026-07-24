@@ -2,8 +2,13 @@ fastapi
 uvicorn
 python-multipart
 pypdf
+pymupdf
+pillow
+pytesseract
 sentence-transformers
 chromadb
-google-generativeai
 numpy
 torch
+ollama
+nltk
+google-generativeai
