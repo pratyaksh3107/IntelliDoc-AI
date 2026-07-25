@@ -1,150 +1,296 @@
-# IntelliDoc AI
+# IntelliDoc
 
-## Project Vision
-
-IntelliDoc AI is an AI-powered Document Intelligence and Knowledge Assistant inspired by NotebookLM, ChatPDF, and Memory AI.
-
-The goal is to allow users to upload documents, extract information, perform semantic search, and interact with documents using AI-powered question answering.
-
-This project is being developed as a Capstone Project and follows the concepts learned during the internship.
+# AI-Powered Document Intelligence Platform
 
 ---
 
-## Final Tech Stack
+# Project Vision
 
-Frontend:
+IntelliDoc is an AI-powered Document Intelligence Platform designed to transform static PDF documents into an interactive knowledge base.
+
+Inspired by platforms like NotebookLM and ChatPDF, IntelliDoc enables users to upload documents, perform semantic search, compare multiple documents, generate AI-powered summaries, create study materials, and interact with documents through Retrieval-Augmented Generation (RAG).
+
+The project has been developed as a Capstone Project to demonstrate practical implementation of Artificial Intelligence, Natural Language Processing, Vector Databases, and Modern Full Stack Development.
+
+---
+
+# Project Information
+
+**Project Name:** IntelliDoc
+
+**Version:** v2.0
+
+**Status:** Completed
+
+**Project Type:** AI Capstone Project
+
+---
+
+# Final Tech Stack
+
+## Frontend
+
 - React
 - Vite
+- CSS
 
-Backend:
+## Backend
+
 - FastAPI
-
-AI / ML:
 - Python
-- Sentence Transformers
-- Google Gemini
 
-Vector Database:
+## AI & Machine Learning
+
+- Google Gemini API
+- Ollama (Local LLM Support)
+- Sentence Transformers
+- MiniLM Embedding Model
+
+## Vector Database
+
 - ChromaDB
 
-Core AI Concepts:
-- Embeddings
-- Semantic Search
-- Retrieval Augmented Generation (RAG)
+## PDF Processing
 
-Future Components:
-- Multi-document Chat
-- AI Report Generation
-- PDF Summarization
-- Quiz Generation
+- PyPDF
+
+## Exporting
+
+- ReportLab (PDF)
+- python-docx (DOCX)
 
 ---
 
-## Development Rule
+# Core AI Concepts Used
 
-Build step-by-step.
+- Retrieval-Augmented Generation (RAG)
+- Semantic Search
+- Text Embeddings
+- Vector Similarity Search
+- Prompt Engineering
+- Large Language Models (LLMs)
+- Document Chunking
+- Context Retrieval
 
-Do not skip phases.
+---
 
-Every feature must be understandable before implementation.
+# Development Principles
 
-Project must remain resume-worthy and industry relevant.
+- Build incrementally
+- Keep the architecture modular
+- Follow clean project structure
+- Focus on resume-worthy implementation
+- Prioritize real-world AI workflows over basic CRUD applications
 
 ---
 
 # Project Status
 
-Current Version: v1.0
+Current Version: **v2.0**
 
-Status: Completed
-
-Completed Features:
-
-- PDF Upload
-- PDF Storage
-- PDF Text Extraction
-- Document Metadata Extraction
-- Text Chunking
-- Embedding Generation
-- ChromaDB Integration
-- Semantic Search
-- Gemini Integration
-- RAG Question Answering
+Status: **Completed**
 
 ---
 
-# Current Architecture
+# Implemented Features
 
-Frontend (React)
+## Document Management
+
+- PDF Upload
+- Document Storage
+- Uploaded Document Listing
+- Document Metadata Extraction
+
+---
+
+## AI Features
+
+- AI Chat with Documents
+- Semantic Search
+- Retrieval-Augmented Generation (RAG)
+- AI Document Summarization
+- Study Notes Generation
+- Flashcard Generation
+- Question Bank Generation
+- FAQ Generation
+- Meeting Notes Generation
+- Research Notes Generation
+- Multi-Document Comparison
+
+---
+
+## Export Features
+
+- Export Summary as PDF
+- Export Summary as DOCX
+
+---
+
+## Backend Features
+
+- PDF Text Extraction
+- Intelligent Text Chunking
+- Embedding Generation
+- ChromaDB Storage
+- Semantic Retrieval
+- REST APIs using FastAPI
+
+---
+
+# System Architecture
+
+## Frontend (React)
 
 - Upload PDF
-- View Uploaded Documents
-- Search Documents
-- Ask Questions
+- Document Dashboard
+- AI File Analysis
+- Semantic Search
+- AI Chat
+- Compare Documents
+- Export Reports
 
-Backend (FastAPI)
+---
 
-- Receive PDF
-- Save PDF
-- Extract Text
-- Create Chunks
+## Backend (FastAPI)
+
+- Receive Uploaded Files
+- Extract PDF Content
+- Create Text Chunks
 - Generate Embeddings
-- Store in ChromaDB
-- Retrieve Relevant Chunks
-- Generate AI Answers
+- Store Vector Embeddings
+- Retrieve Relevant Context
+- Generate AI Responses
+- Generate AI Reports
 
-AI Pipeline
+---
 
-User Question
+## AI Pipeline
+
+User Uploads PDF
+
 ↓
+
+PDF Text Extraction
+
+↓
+
+Text Chunking
+
+↓
+
 Embedding Generation
+
 ↓
-Semantic Search (ChromaDB)
+
+Store in ChromaDB
+
 ↓
+
+User Query
+
+↓
+
+Semantic Search
+
+↓
+
 Relevant Context Retrieval
+
 ↓
-Gemini Flash Latest
+
+Gemini / Ollama
+
 ↓
-Final Answer
+
+Final AI Response
 
 ---
 
 # API Endpoints
 
-GET /
+## Upload
 
 POST /upload
 
+---
+
+## Documents
+
 GET /documents
 
+---
+
+## Semantic Search
+
 GET /semantic-search
+
+---
+
+## AI Chat
 
 GET /ask
 
 ---
 
-# Next Phase
+## AI Summary
 
-Planned Features:
+POST /summary
 
-1. Chat Interface
-2. Chat History
-3. PDF Summarization
-4. Notes Generation
-5. Quiz Generation
-6. Downloadable Reports
+---
+
+## Document Comparison
+
+POST /compare
+
+---
+
+## Export PDF
+
+POST /export/pdf
+
+---
+
+## Export DOCX
+
+POST /export/docx
 
 ---
 
 # Learning Outcomes
 
-- FastAPI Architecture
+This project demonstrates practical implementation of:
+
+- FastAPI
 - React Integration
-- API Development
+- REST APIs
 - PDF Processing
-- Embeddings
+- Embedding Models
 - Vector Databases
 - ChromaDB
 - Semantic Search
-- RAG
-- Gemini API Integration
+- Retrieval-Augmented Generation
+- Prompt Engineering
+- Google Gemini API
+- Ollama Integration
+- Document Intelligence Systems
+
+---
+
+# Future Scope
+
+- Authentication & User Accounts
+- Multi-file Knowledge Base
+- Chat History
+- Voice Interaction
+- OCR Support
+- Image Understanding
+- Cloud Storage Integration
+- Team Collaboration
+- Mobile Responsive UI Improvements
+- Real-time Streaming AI Responses
+
+---
+
+# Conclusion
+
+IntelliDoc demonstrates how modern AI techniques such as Retrieval-Augmented Generation (RAG), Semantic Search, Vector Databases, and Large Language Models can be combined to build an intelligent document assistant capable of understanding, analyzing, and interacting with documents in a natural and efficient manner.
