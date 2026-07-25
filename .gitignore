@@ -25,6 +25,10 @@ dist/
 # OS
 .DS_Store
 
+# Generated Reports
+generated_reports/
+backend/generated_reports/
+
 
 backend/generated_reports/
 backend/__pycache__/
