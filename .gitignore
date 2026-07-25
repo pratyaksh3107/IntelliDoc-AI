@@ -24,3 +24,8 @@ dist/
 
 # OS
 .DS_Store
+
+
+backend/generated_reports/
+backend/__pycache__/
+frontend/node_modules/

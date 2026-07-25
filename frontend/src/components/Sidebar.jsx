@@ -99,6 +99,13 @@ function Sidebar({ activeView, setActiveView }) {
   🧠 Flashcards
 </button>
 
+<button
+  className={activeView === "comparison" ? "active" : ""}
+  onClick={() => setActiveView("comparison")}
+>
+  📄 Compare
+</button>
+
     </div>
   );
 }

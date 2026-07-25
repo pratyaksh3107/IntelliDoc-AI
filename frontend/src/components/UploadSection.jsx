@@ -18,7 +18,7 @@ import { useState, useEffect, useRef } from "react";
 import "./UploadSection.css";
 
 function UploadSection() {
-  const [fileData, setFileData] = useState(null);
+  const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [currentDocumentId, setCurrentDocumentId] = useState(null);
 
   const [fileName, setFileName] = useState("");
@@ -51,16 +51,21 @@ function UploadSection() {
   const [activeView, setActiveView] = useState("analysis");
   const flashcardRef = useRef(null);
 
- useEffect(() => {
-  console.log("Current Active View:", activeView);
+  const [selectedCompareDocs, setSelectedCompareDocs] = useState([]);
 
-  if (activeView === "flashcards") {
-    flashcardRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }
-}, [activeView]);
+  const [comparison, setComparison] = useState("");
+  const [loadingComparison, setLoadingComparison] = useState(false);
+
+  useEffect(() => {
+    console.log("Current Active View:", activeView);
+
+    if (activeView === "flashcards") {
+      flashcardRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [activeView]);
   const [aiProvider, setAiProvider] = useState("ollama");
 
   const [flashcards, setFlashcards] = useState("");
@@ -104,78 +109,78 @@ function UploadSection() {
 
   const handleFileChange = (event) => {
 
-  const files = Array.from(event.target.files);
+    const files = Array.from(event.target.files);
 
-  if (files.length === 0) return;
+    if (files.length === 0) return;
 
-  setSelectedFiles(files);
+    setSelectedFiles(files);
 
-  setFileName(
-    files.map(file => file.name).join(", ")
-  );
+    setFileName(
+      files.map(file => file.name).join(", ")
+    );
 
-};
+  };
 
   const handleUpload = async () => {
 
-  if (selectedFiles.length === 0) {
-    alert("Please select at least one file.");
-    return;
-  }
-
-  setUploading(true);
-
-  const formData = new FormData();
-
-  selectedFiles.forEach((file) => {
-    formData.append("files", file);
-  });
-
-  try {
-
-    const response = await fetch(
-      "http://localhost:8000/upload",
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
-
-    const data = await response.json();
-
-    if (data.error) {
-      alert(data.error);
-      setUploading(false);
+    if (selectedFiles.length === 0) {
+      alert("Please select at least one file.");
       return;
     }
 
-    if (data.documents && data.documents.length > 0) {
+    setUploading(true);
 
-      setFileData(data.documents[0]);
+    const formData = new FormData();
 
-      setCurrentDocumentId(
-        data.documents[0].document_id
+    selectedFiles.forEach((file) => {
+      formData.append("files", file);
+    });
+
+    try {
+
+      const response = await fetch(
+        "http://localhost:8000/upload",
+        {
+          method: "POST",
+          body: formData,
+        }
       );
+
+      const data = await response.json();
+
+      if (data.error) {
+        alert(data.error);
+        setUploading(false);
+        return;
+      }
+
+      if (data.documents && data.documents.length > 0) {
+
+        setUploadedDocuments(data.documents);
+
+        setCurrentDocumentId(
+          data.documents[0].document_id
+        );
+
+      }
+
+      await fetchDocuments();
+
+      alert(`${data.documents.length} document(s) uploaded successfully.`);
+
+      setSelectedFiles([]);
+      setFileName("");
+
+    } catch (err) {
+
+      console.log(err);
+      alert("Upload Failed");
 
     }
 
-    await fetchDocuments();
+    setUploading(false);
 
-    alert(`${data.documents.length} document(s) uploaded successfully.`);
-
-    setSelectedFiles([]);
-    setFileName("");
-
-  } catch (err) {
-
-    console.log(err);
-    alert("Upload Failed");
-
-  }
-
-  setUploading(false);
-
-};
+  };
 
   const handleSearch = async () => {
     if (!searchQuery) return;
@@ -197,6 +202,74 @@ function UploadSection() {
     }
 
     setSearching(false);
+  };
+
+
+  const askQuestion = async () => {
+
+    if (!question.trim()) {
+      alert("Please enter a question.");
+      return;
+    }
+
+    if (!currentDocumentId) {
+      alert("Please select or upload a document first.");
+      return;
+    }
+
+    setThinking(true);
+
+    const userMessage = {
+      role: "user",
+      content: question,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+
+    try {
+
+      const response = await fetch(
+        "http://localhost:8000/ask",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            question: question,
+            document_id: currentDocumentId,
+            provider: aiProvider,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: data.answer || "No answer found.",
+        },
+      ]);
+
+    } catch (error) {
+
+      console.error(error);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Something went wrong.",
+        },
+      ]);
+
+    }
+
+    setQuestion("");
+    setThinking(false);
+
   };
 
 
@@ -288,53 +361,53 @@ function UploadSection() {
 
 
 
- const parseFlashcards = (markdown) => {
+  const parseFlashcards = (markdown) => {
 
-  if (!markdown) return [];
+    if (!markdown) return [];
 
-  const sections = markdown.split(
-    /(?:##+\s*Card|\*\*Card\s*\d+\*\*|Card\s+\d+)/i
-  );
-
-  const cards = [];
-
-  sections.slice(1).forEach((section) => {
-
-    let qMatch = section.match(
-      /\*\*Q:\*\*\s*([\s\S]*?)\*\*A:\*\*/i
+    const sections = markdown.split(
+      /(?:##+\s*Card|\*\*Card\s*\d+\*\*|Card\s+\d+)/i
     );
 
-    let aMatch = section.match(
-      /\*\*A:\*\*\s*([\s\S]*)/i
-    );
+    const cards = [];
 
-    // Support Front / Back format
-    if (!qMatch) {
+    sections.slice(1).forEach((section) => {
 
-      qMatch = section.match(
-        /\*\*Front:\*\*\s*([\s\S]*?)\*\*Back:\*\*/i
+      let qMatch = section.match(
+        /\*\*Q:\*\*\s*([\s\S]*?)\*\*A:\*\*/i
       );
 
-      aMatch = section.match(
-        /\*\*Back:\*\*\s*([\s\S]*)/i
+      let aMatch = section.match(
+        /\*\*A:\*\*\s*([\s\S]*)/i
       );
 
-    }
+      // Support Front / Back format
+      if (!qMatch) {
 
-    if (qMatch && aMatch) {
+        qMatch = section.match(
+          /\*\*Front:\*\*\s*([\s\S]*?)\*\*Back:\*\*/i
+        );
 
-      cards.push({
-        question: qMatch[1].trim(),
-        answer: aMatch[1].trim(),
-      });
+        aMatch = section.match(
+          /\*\*Back:\*\*\s*([\s\S]*)/i
+        );
 
-    }
+      }
 
-  });
+      if (qMatch && aMatch) {
 
-  return cards;
+        cards.push({
+          question: qMatch[1].trim(),
+          answer: aMatch[1].trim(),
+        });
 
-};
+      }
+
+    });
+
+    return cards;
+
+  };
 
 
   const handleFlashcards = async () => {
@@ -377,10 +450,10 @@ function UploadSection() {
       console.log("Cards Length:", cards.length);
       console.log("Changing activeView to flashcards");
       if (cards.length > 0) {
-    setActiveView("flashcards");
-} else {
-    alert("Flashcards could not be generated.");
-}
+        setActiveView("flashcards");
+      } else {
+        alert("Flashcards could not be generated.");
+      }
 
     } catch (err) {
 
@@ -396,312 +469,361 @@ function UploadSection() {
 
   };
 
-const handleQuestionBank = async () => {
-
-  if (!currentDocumentId) {
-    alert("Please upload a document first.");
-    return;
-  }
-
-  setLoadingQuestionBank(true);
-
-  try {
-
-    const response = await fetch(
-      "http://localhost:8000/question-bank",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          document_id: currentDocumentId,
-          provider: aiProvider,
-        }),
-      }
-    );
-
-    const data = await response.json();
-
-    console.log("Question Bank Status:", response.status);
-    console.log("Question Bank Data:", data);
-
-    setQuestionBank(
-      data.question_bank || "No Question Bank generated."
-    );
-
-    setActiveView("questionBank");
-
-  } catch (err) {
-
-    console.log("Question Bank Error:", err);
-
-    setQuestionBank("Failed to generate Question Bank.");
-
-  }
-
-  setLoadingQuestionBank(false);
-
-};
-
-const handleFaq = async () => {
-
-  if (!currentDocumentId) {
-    alert("Please upload a document first.");
-    return;
-  }
-
-  setLoadingFaq(true);
-
-  try {
-
-    const response = await fetch(
-      "http://localhost:8000/faq",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          document_id: currentDocumentId,
-          provider: aiProvider,
-        }),
-      }
-    );
-
-    const data = await response.json();
-
-    console.log("FAQ Status:", response.status);
-    console.log("FAQ Data:", data);
-
-    setFaq(
-      data.faq || "No FAQ generated."
-    );
-
-    setActiveView("faq");
-
-  } catch (err) {
-
-    console.log("FAQ Error:", err);
-
-    setFaq("Failed to generate FAQ.");
-
-  }
-
-  setLoadingFaq(false);
-
-};
-
-
-const handleMeetingNotes = async () => {
-
-  if (!currentDocumentId) {
-    alert("Please upload a document first.");
-    return;
-  }
-
-  setLoadingMeetingNotes(true);
-
-  try {
-
-    const response = await fetch(
-      "http://localhost:8000/meeting-notes",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          document_id: currentDocumentId,
-          provider: aiProvider,
-        }),
-      }
-    );
-
-    const data = await response.json();
-
-    console.log("Meeting Notes Status:", response.status);
-    console.log("Meeting Notes Data:", data);
-
-    setMeetingNotes(
-      data.meeting_notes || "No Meeting Notes generated."
-    );
-
-    setActiveView("meetingNotes");
-
-  } catch (err) {
-
-    console.log("Meeting Notes Error:", err);
-
-    setMeetingNotes("Failed to generate Meeting Notes.");
-
-  }
-
-  setLoadingMeetingNotes(false);
-
-};
-
-const handleResearchNotes = async () => {
-
-  if (!currentDocumentId) {
-    alert("Please upload a document first.");
-    return;
-  }
-
-  setLoadingResearchNotes(true);
-
-  try {
-
-    const response = await fetch(
-      "http://localhost:8000/research-notes",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          document_id: currentDocumentId,
-          provider: aiProvider,
-        }),
-      }
-    );
-
-    const data = await response.json();
-
-    console.log("Research Notes Status:", response.status);
-    console.log("Research Notes Data:", data);
-
-    setResearchNotes(
-      data.research_notes || "No Research Notes generated."
-    );
-
-    setActiveView("researchNotes");
-
-  } catch (err) {
-
-    console.log("Research Notes Error:", err);
-
-    setResearchNotes("Failed to generate Research Notes.");
-
-  }
-
-  setLoadingResearchNotes(false);
-
-};
-
-const handleDeleteDocument = async (documentId) => {
-
-  const confirmDelete = window.confirm(
-    "Are you sure you want to delete this document?"
-  );
-
-  if (!confirmDelete) return;
-
-  try {
-
-    const response = await fetch(
-      `http://localhost:8000/document/${documentId}`,
-      {
-        method: "DELETE",
-      }
-    );
-
-    const data = await response.json();
-
-    alert(data.message);
-
-    fetchDocuments();
-
-    if (currentDocumentId === documentId) {
-      setCurrentDocumentId(null);
+  const handleQuestionBank = async () => {
+
+    if (!currentDocumentId) {
+      alert("Please upload a document first.");
+      return;
     }
+
+    setLoadingQuestionBank(true);
+
+    try {
+
+      const response = await fetch(
+        "http://localhost:8000/question-bank",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            document_id: currentDocumentId,
+            provider: aiProvider,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      console.log("Question Bank Status:", response.status);
+      console.log("Question Bank Data:", data);
+
+      setQuestionBank(
+        data.question_bank || "No Question Bank generated."
+      );
+
+      setActiveView("questionBank");
+
+    } catch (err) {
+
+      console.log("Question Bank Error:", err);
+
+      setQuestionBank("Failed to generate Question Bank.");
+
+    }
+
+    setLoadingQuestionBank(false);
+
+  };
+
+  const handleFaq = async () => {
+
+    if (!currentDocumentId) {
+      alert("Please upload a document first.");
+      return;
+    }
+
+    setLoadingFaq(true);
+
+    try {
+
+      const response = await fetch(
+        "http://localhost:8000/faq",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            document_id: currentDocumentId,
+            provider: aiProvider,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      console.log("FAQ Status:", response.status);
+      console.log("FAQ Data:", data);
+
+      setFaq(
+        data.faq || "No FAQ generated."
+      );
+
+      setActiveView("faq");
+
+    } catch (err) {
+
+      console.log("FAQ Error:", err);
+
+      setFaq("Failed to generate FAQ.");
+
+    }
+
+    setLoadingFaq(false);
+
+  };
+
+
+  const handleMeetingNotes = async () => {
+
+    if (!currentDocumentId) {
+      alert("Please upload a document first.");
+      return;
+    }
+
+    setLoadingMeetingNotes(true);
+
+    try {
+
+      const response = await fetch(
+        "http://localhost:8000/meeting-notes",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            document_id: currentDocumentId,
+            provider: aiProvider,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      console.log("Meeting Notes Status:", response.status);
+      console.log("Meeting Notes Data:", data);
+
+      setMeetingNotes(
+        data.meeting_notes || "No Meeting Notes generated."
+      );
+
+      setActiveView("meetingNotes");
+
+    } catch (err) {
+
+      console.log("Meeting Notes Error:", err);
+
+      setMeetingNotes("Failed to generate Meeting Notes.");
+
+    }
+
+    setLoadingMeetingNotes(false);
+
+  };
+
+  const handleResearchNotes = async () => {
+
+    if (!currentDocumentId) {
+      alert("Please upload a document first.");
+      return;
+    }
+
+    setLoadingResearchNotes(true);
+
+    try {
+
+      const response = await fetch(
+        "http://localhost:8000/research-notes",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            document_id: currentDocumentId,
+            provider: aiProvider,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      console.log("Research Notes Status:", response.status);
+      console.log("Research Notes Data:", data);
+
+      setResearchNotes(
+        data.research_notes || "No Research Notes generated."
+      );
+
+      setActiveView("researchNotes");
+
+    } catch (err) {
+
+      console.log("Research Notes Error:", err);
+
+      setResearchNotes("Failed to generate Research Notes.");
+
+    }
+
+    setLoadingResearchNotes(false);
+
+  };
+
+  const handleDeleteDocument = async (documentId) => {
+
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this document?"
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+
+      const response = await fetch(
+        `http://localhost:8000/document/${documentId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
+      alert(data.message);
+
+      fetchDocuments();
+
+      if (currentDocumentId === documentId) {
+        setCurrentDocumentId(null);
+      }
+
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete document.");
+    }
+  };
+
+const handleCompareDocuments = async () => {
+
+  if (selectedCompareDocs.length !== 2) {
+    alert("Please select exactly 2 documents.");
+    return;
+  }
+
+  setLoadingComparison(true);
+
+  try {
+
+    const response = await fetch(
+      "http://localhost:8000/compare",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+  document_id_1: selectedCompareDocs[0],
+  document_id_2: selectedCompareDocs[1],
+  provider: aiProvider,
+}),
+      }
+    );
+
+    const data = await response.json();
+
+    console.log("Comparison:", data);
+
+    setComparison(data.comparison || "No comparison generated.");
+
+    setActiveView("comparison");
 
   } catch (error) {
+
     console.error(error);
-    alert("Failed to delete document.");
+    alert("Comparison failed.");
+
+  } finally {
+
+    setLoadingComparison(false);
+
   }
-};
-
-const handleDownloadDocument = (documentId) => {
-
-  window.open(
-    `http://localhost:8000/download/${documentId}`,
-    "_blank"
-  );
 
 };
 
 
-const exportPDF = async () => {
+  const handleDownloadDocument = (documentId) => {
 
-  if (!summary) {
-    alert("Generate summary first.");
-    return;
-  }
+    window.open(
+      `http://localhost:8000/download/${documentId}`,
+      "_blank"
+    );
 
-  const response = await fetch(
-    "http://localhost:8000/export/pdf",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        content: summary,
-      }),
+  };
+
+
+  const exportPDF = async () => {
+
+    if (!summary) {
+      alert("Generate summary first.");
+      return;
     }
-  );
 
-  const blob = await response.blob();
+    const response = await fetch(
+      "http://localhost:8000/export/pdf",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: summary,
+        }),
+      }
+    );
 
-  const url = window.URL.createObjectURL(blob);
+    const blob = await response.blob();
 
-  const a = document.createElement("a");
+    const url = window.URL.createObjectURL(blob);
 
-  a.href = url;
+    const a = document.createElement("a");
 
-  a.download = "Summary.pdf";
+    a.href = url;
 
-  a.click();
+    a.download = "Summary.pdf";
 
-};
+    a.click();
+
+  };
 
 
 
-const exportDOCX = async () => {
+  const exportDOCX = async () => {
 
-  if (!summary) {
-    alert("Generate summary first.");
-    return;
-  }
-
-  const response = await fetch(
-    "http://localhost:8000/export/docx",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        content: summary,
-      }),
+    if (!summary) {
+      alert("Generate summary first.");
+      return;
     }
-  );
 
-  const blob = await response.blob();
+    const response = await fetch(
+      "http://localhost:8000/export/docx",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content: summary,
+        }),
+      }
+    );
 
-  const url = window.URL.createObjectURL(blob);
+    const blob = await response.blob();
 
-  const a = document.createElement("a");
+    const url = window.URL.createObjectURL(blob);
 
-  a.href = url;
+    const a = document.createElement("a");
 
-  a.download = "Summary.docx";
+    a.href = url;
 
-  a.click();
+    a.download = "Summary.docx";
 
-};
+    a.click();
 
+  };
+
+  console.log("Documents State:", documents);
 
   return (
     <section className="upload-container">
@@ -740,26 +862,26 @@ const exportDOCX = async () => {
             </div>
 
             <input
-  type="file"
-  multiple
-  accept=".pdf,.png,.jpg,.jpeg"
-  onChange={handleFileChange}
-/>
-{fileName && (
-  <div className="selected-file">
+              type="file"
+              multiple
+              accept=".pdf,.png,.jpg,.jpeg"
+              onChange={handleFileChange}
+            />
+            {fileName && (
+              <div className="selected-file">
 
-    <CheckCircle size={18} />
+                <CheckCircle size={18} />
 
-    <span>
-      {selectedFiles.length} file(s) selected
-    </span>
+                <span>
+                  {selectedFiles.length} file(s) selected
+                </span>
 
-    <br />
+                <br />
 
-    <small>{fileName}</small>
+                <small>{fileName}</small>
 
-  </div>
-)}
+              </div>
+            )}
 
             <button
               className="upload-btn"
@@ -827,92 +949,92 @@ const exportDOCX = async () => {
 
                   documents.map((doc) => (
 
-  <li
-    key={doc.document_id}
-    onClick={() => {
+                    <li
+                      key={doc.document_id}
+                      onClick={() => {
 
-      setCurrentDocumentId(doc.document_id);
+                        setCurrentDocumentId(doc.document_id);
 
-      alert(`Selected: ${doc.filename}`);
+                        alert(`Selected: ${doc.filename}`);
 
-    }}
-    style={{
-      cursor: "pointer",
-      border:
-        currentDocumentId === doc.document_id
-          ? "2px solid #2563eb"
-          : "1px solid #ddd",
-      borderRadius: "8px",
-      padding: "10px",
-      marginBottom: "10px",
-    }}
-  >
+                      }}
+                      style={{
+                        cursor: "pointer",
+                        border:
+                          currentDocumentId === doc.document_id
+                            ? "2px solid #2563eb"
+                            : "1px solid #ddd",
+                        borderRadius: "8px",
+                        padding: "10px",
+                        marginBottom: "10px",
+                      }}
+                    >
 
-    <FileText size={16} />
+                      <FileText size={16} />
 
-    <div>
+                      <div>
 
-  <strong>{doc.filename}</strong>
+                        <strong>{doc.filename}</strong>
 
-  <br />
+                        <br />
 
-  <small>
-    {doc.file_type.toUpperCase()} • {doc.chunks} Chunks
-  </small>
+                        <small>
+                          {doc.file_type.toUpperCase()} • {doc.chunks} Chunks
+                        </small>
 
-</div>
+                      </div>
 
-<button
-  onClick={(e) => {
-    e.stopPropagation();
-    handleDeleteDocument(doc.document_id);
-  }}
-  style={{
-    marginTop: "8px",
-    padding: "5px 10px",
-    background: "#ef4444",
-    color: "white",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-  }}
->
-  Delete
-</button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteDocument(doc.document_id);
+                        }}
+                        style={{
+                          marginTop: "8px",
+                          padding: "5px 10px",
+                          background: "#ef4444",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "5px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Delete
+                      </button>
 
-<div>
+                      <div>
 
-  <strong>{doc.filename}</strong>
+                        <strong>{doc.filename}</strong>
 
-  <br />
+                        <br />
 
-  <small>
-    {doc.file_type.toUpperCase()} • {doc.chunks} Chunks
-  </small>
+                        <small>
+                          {doc.file_type.toUpperCase()} • {doc.chunks} Chunks
+                        </small>
 
-</div>
+                      </div>
 
-<button
-  onClick={(e) => {
-    e.stopPropagation();
-    handleDeleteDocument(doc.document_id);
-  }}
->
-  Delete
-</button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteDocument(doc.document_id);
+                        }}
+                      >
+                        Delete
+                      </button>
 
-<button
-  onClick={(e) => {
-    e.stopPropagation();
-    handleDownloadDocument(doc.document_id);
-  }}
->
-  Download
-</button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadDocument(doc.document_id);
+                        }}
+                      >
+                        Download
+                      </button>
 
-</li>
+                    </li>
 
-))
+                  ))
 
                 )}
 
@@ -943,216 +1065,281 @@ const exportDOCX = async () => {
           {(activeView === "analysis" ||
             activeView === "summary" ||
             activeView === "notes") &&
-            fileData && (
+            uploadedDocuments.length > 0 && (
 
-              <div className="analysis-card">
+              <>
+                {selectedCompareDocs.length === 2 && (
+                  <button
+                    className="compare-btn"
+                    onClick={handleCompareDocuments}
+                    disabled={loadingComparison}
+                  >
+                    {loadingComparison ? "Comparing..." : "📄 Compare Documents"}
+                  </button>
+                )}
 
-                <div className="card-header">
+                {uploadedDocuments.map((fileData) => (
+                  <div
+                    key={fileData.document_id}
+                    className="analysis-card">
 
-                  <div className="card-icon">
+                    <div className="card-header">
 
-                    <Brain size={24} />
+                      <div className="card-icon">
+                        <Brain size={24} />
+                      </div>
 
-                  </div>
+                      <div style={{ flex: 1 }}>
+                        <h3>AI File Analysis</h3>
+                        <p>Generated after upload</p>
+                      </div>
 
-                  <div>
+                      <input
+                        type="checkbox"
+                        checked={selectedCompareDocs.includes(fileData.document_id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
 
-                    <h3>AI File Analysis</h3>
+                            if (selectedCompareDocs.length >= 2) {
+                              alert("You can compare only 2 documents.");
+                              return;
+                            }
 
-                    <p>Generated after upload</p>
+                            setSelectedCompareDocs([
+                              ...selectedCompareDocs,
+                              fileData.document_id,
+                            ]);
 
-                  </div>
+                          } else {
 
-                </div>
+                            setSelectedCompareDocs(
+                              selectedCompareDocs.filter(
+                                (id) => id !== fileData.document_id
+                              )
+                            );
 
-                <div className="analysis-grid">
-
-                  <div>
-
-                    <strong>Filename</strong>
-
-                    <p>{fileData.filename}</p>
-
-                  </div>
-
-                  <div>
-
-                    <strong>Pages</strong>
-
-                    <p>{fileData.pages}</p>
-
-                  </div>
-
-                  <div>
-
-                    <strong>Chunks</strong>
-
-                    <p>{fileData.chunks}</p>
-
-                  </div>
-
-                </div>
-
-                <div className="preview-box">
-
-                  <strong>Preview</strong>
-
-                  <p>{fileData.preview}</p>
-
-                </div>
-
-                <button
-                  className="upload-btn"
-                  onClick={handleSummary}
-                  disabled={summarizing}
-                >
-                  {summarizing ? (
-                    <>
-                      <Loader2 className="spin" size={18} />
-                      Generating Summary...
-                    </>
-                  ) : (
-                    <>
-                      <Brain size={18} />
-                      Generate Summary
-                    </>
-                  )}
-                </button>
-
-                <button
-                  className="upload-btn"
-                  onClick={handleFlashcards}
-                  disabled={loadingFlashcards}
-                >
-                  {loadingFlashcards ? (
-                    <>
-                      <Loader2
-                        className="spin"
-                        size={18}
+                          }
+                        }}
                       />
-                      Generating Flashcards...
-                    </>
-                  ) : (
-                    <>
-                      📚 Generate Flashcards
-                    </>
-                  )}
-                </button>
 
-                <button
-  className="upload-btn"
-  onClick={handleQuestionBank}
-  disabled={loadingQuestionBank}
->
-  {loadingQuestionBank ? (
-    <>
-      <Loader2
-        className="spin"
-        size={18}
-      />
-      Generating Question Bank...
-    </>
-  ) : (
-    <>
-      📘 Generate Question Bank
-    </>
-  )}
-</button>
-
-<button
-  className="upload-btn"
-  onClick={handleFaq}
-  disabled={loadingFaq}
->
-  {loadingFaq ? "Generating FAQ..." : "Generate FAQ"}
-</button>
-
-<button
-  className="upload-btn"
-  onClick={handleMeetingNotes}
-  disabled={loadingMeetingNotes}
->
-  {loadingMeetingNotes
-    ? "Generating Meeting Notes..."
-    : "Generate Meeting Notes"}
-</button>
-
-<button
-  className="upload-btn"
-  onClick={handleResearchNotes}
-  disabled={loadingResearchNotes}
->
-  {loadingResearchNotes
-    ? "Generating Research Notes..."
-    : "Generate Research Notes"}
-</button>
+                    </div>
 
 
+                    <div className="analysis-grid">
 
-                <button
-                  className="upload-btn"
-                  onClick={handleStudyNotes}
-                  disabled={loadingNotes}
-                >
-                  {loadingNotes ? (
-                    <>
-                      <Loader2 className="spin" size={18} />
-                      Generating Study Notes...
-                    </>
-                  ) : (
-                    <>
-                      <Brain size={18} />
-                      Generate Study Notes
-                    </>
-                  )}
-                </button>
+                      <div>
 
-                {activeView === "summary" && summary && (
-                  <div className="preview-box" style={{ marginTop: "20px" }}>
-                    <strong>AI Summary</strong>
-                    <div
-                      className="markdown-output"
-                      style={{ lineHeight: "1.8" }}
+                        <strong>Filename</strong>
+
+                        <p>{fileData.filename}</p>
+
+                      </div>
+
+                      <div>
+
+                        <strong>Pages</strong>
+
+                        <p>{fileData.pages}</p>
+
+                      </div>
+
+                      <div>
+
+                        <strong>Chunks</strong>
+
+                        <p>{fileData.chunks}</p>
+
+                      </div>
+
+                    </div>
+
+                    <div className="preview-box">
+
+                      <strong>Preview</strong>
+
+                      <p>{fileData.preview || "No Preview Available"}</p>
+
+                    </div>
+
+                    <button
+                      className="upload-btn"
+                      onClick={() => {
+                        setCurrentDocumentId(fileData.document_id);
+                        handleSummary();
+                      }}
+
+                      disabled={summarizing}
                     >
-                      <ReactMarkdown>
-                        {summary}
-                      </ReactMarkdown>
-                    </div>
-                    <div style={{ marginTop: "20px" }}>
+                      {summarizing ? (
+                        <>
+                          <Loader2 className="spin" size={18} />
+                          Generating Summary...
+                        </>
+                      ) : (
+                        <>
+                          <Brain size={18} />
+                          Generate Summary
+                        </>
+                      )}
+                    </button>
 
-  <button
-    className="upload-btn"
-    onClick={exportPDF}
-  >
-    📄 Export PDF
-  </button>
+                    <button
+                      className="upload-btn"
+                      onClick={() => {
+                        setCurrentDocumentId(fileData.document_id);
+                        handleFlashcards();
+                      }}
+                      disabled={loadingFlashcards}
+                    >
+                      {loadingFlashcards ? (
+                        <>
+                          <Loader2
+                            className="spin"
+                            size={18}
+                          />
+                          Generating Flashcards...
+                        </>
+                      ) : (
+                        <>
+                          📚 Generate Flashcards
+                        </>
+                      )}
+                    </button>
 
-  <button
-    className="upload-btn"
-    onClick={exportDOCX}
-    style={{ marginTop: "10px" }}
-  >
-    📝 Export DOCX
-  </button>
 
-</div>
+
+                    <button
+                      className="upload-btn"
+                      onClick={() => {
+                        setCurrentDocumentId(fileData.document_id);
+                        handleQuestionBank();
+                      }}
+                      disabled={loadingQuestionBank}
+                    >
+                      {loadingQuestionBank ? (
+                        <>
+
+                          <Loader2
+                            className="spin"
+                            size={18}
+                          />
+                          Generating Question Bank...
+                        </>
+                      ) : (
+                        <>
+                          📘 Generate Question Bank
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      className="upload-btn"
+                      onClick={() => {
+                        setCurrentDocumentId(fileData.document_id);
+                        handleFaq();
+                      }}
+                      disabled={loadingFaq}
+                    >
+                      {loadingFaq ? "Generating FAQ..." : "Generate FAQ"}
+                    </button>
+
+                    <button
+                      className="upload-btn"
+                      onClick={() => {
+                        setCurrentDocumentId(fileData.document_id);
+                        handleMeetingNotes();
+                      }}
+                      disabled={loadingMeetingNotes}
+                    >
+                      {loadingMeetingNotes
+                        ? "Generating Meeting Notes..."
+                        : "Generate Meeting Notes"}
+                    </button>
+
+                    <button
+                      className="upload-btn"
+                      onClick={() => {
+                        setCurrentDocumentId(fileData.document_id);
+                        handleResearchNotes();
+                      }}
+                      disabled={loadingResearchNotes}
+                    >
+                      {loadingResearchNotes
+                        ? "Generating Research Notes..."
+                        : "Generate Research Notes"}
+                    </button>
+
+
+
+                    <button
+                      className="upload-btn"
+                      onClick={() => {
+                        setCurrentDocumentId(fileData.document_id);
+                        handleStudyNotes();
+                      }}
+                      disabled={loadingNotes}
+                    >
+                      {loadingNotes ? (
+                        <>
+                          <Loader2 className="spin" size={18} />
+                          Generating Study Notes...
+                        </>
+                      ) : (
+                        <>
+                          <Brain size={18} />
+                          Generate Study Notes
+                        </>
+                      )}
+                    </button>
+
+                    {activeView === "summary" && summary && (
+                      <div className="preview-box" style={{ marginTop: "20px" }}>
+                        <strong>AI Summary</strong>
+                        <div
+                          className="markdown-output"
+                          style={{ lineHeight: "1.8" }}
+                        >
+                          <ReactMarkdown>
+                            {summary}
+                          </ReactMarkdown>
+                        </div>
+                        <div style={{ marginTop: "20px" }}>
+
+                          <button
+                            className="upload-btn"
+                            onClick={exportPDF}
+                          >
+                            📄 Export PDF
+                          </button>
+
+                          <button
+                            className="upload-btn"
+                            onClick={exportDOCX}
+                            style={{ marginTop: "10px" }}
+                          >
+                            📝 Export DOCX
+                          </button>
+
+                        </div>
+                      </div>
+                    )}
+
+                    {activeView === "notes" && studyNotes && (
+                      <div className="preview-box" style={{ marginTop: "20px" }}>
+                        <strong>📘 Study Notes</strong>
+
+                        <div className="markdown-output">
+                          <ReactMarkdown>
+                            {studyNotes}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    )}
+
                   </div>
-                )}
 
-                {activeView === "notes" && studyNotes && (
-                  <div className="preview-box" style={{ marginTop: "20px" }}>
-                    <strong>📘 Study Notes</strong>
-
-                    <div className="markdown-output">
-                      <ReactMarkdown>
-                        {studyNotes}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-
+                ))}
+              </>
             )}
 
 
@@ -1257,9 +1444,9 @@ const exportDOCX = async () => {
           {activeView === "flashcards" && flashcardList.length > 0 && (
 
             <div
-  className="summary-card"
-  ref={flashcardRef}
->
+              className="summary-card"
+              ref={flashcardRef}
+            >
 
               <div className="card-header">
 
@@ -1270,21 +1457,21 @@ const exportDOCX = async () => {
                 <div>
                   <h3>Flashcards</h3>
                   <h4>
-📖 Card {currentCard + 1} / {flashcardList.length}
-</h4>
+                    📖 Card {currentCard + 1} / {flashcardList.length}
+                  </h4>
                   <div className="progress-bar">
-  <div
-    className="progress-fill"
-    style={{
-      width: `${((currentCard + 1) / flashcardList.length) * 100}%`,
-    }}
-  />
-</div>
+                    <div
+                      className="progress-fill"
+                      style={{
+                        width: `${((currentCard + 1) / flashcardList.length) * 100}%`,
+                      }}
+                    />
+                  </div>
                 </div>
 
               </div>
 
-              
+
 
               <div className="flashcard">
 
@@ -1334,11 +1521,11 @@ const exportDOCX = async () => {
 
               </div>
 
-              </div>
+            </div>
 
- )}
+          )}
 
-           
+
 
           {activeView === "questionBank" && (
             <div className="summary-card">
@@ -1376,8 +1563,56 @@ const exportDOCX = async () => {
           )}
 
           {activeView === "faq" && (
+            <div className="analysis-result">
+              <h2>❓ Frequently Asked Questions</h2>
+
+              <div
+                style={{
+                  whiteSpace: "pre-wrap",
+                  lineHeight: "1.8",
+                }}
+              >
+                {faq}
+              </div>
+            </div>
+          )}
+
+          {activeView === "meetingNotes" && (
+            <div className="analysis-result">
+              <h2>📝 Meeting Notes</h2>
+
+              <div
+                style={{
+                  whiteSpace: "pre-wrap",
+                  lineHeight: "1.8",
+                }}
+              >
+                {meetingNotes}
+              </div>
+            </div>
+          )}
+
+
+          {activeView === "researchNotes" && (
+            <div className="analysis-result">
+              <h2>🔬 Research Notes</h2>
+
+              <div
+                style={{
+                  whiteSpace: "pre-wrap",
+                  lineHeight: "1.8",
+                }}
+              >
+                {researchNotes}
+              </div>
+            </div>
+          )}
+
+
+          {activeView === "comparison" && (
   <div className="analysis-result">
-    <h2>❓ Frequently Asked Questions</h2>
+
+    <h2>📄 Document Comparison</h2>
 
     <div
       style={{
@@ -1385,46 +1620,18 @@ const exportDOCX = async () => {
         lineHeight: "1.8",
       }}
     >
-      {faq}
+      <ReactMarkdown>
+        {comparison}
+      </ReactMarkdown>
     </div>
-  </div>
-)}
 
-{activeView === "meetingNotes" && (
-  <div className="analysis-result">
-    <h2>📝 Meeting Notes</h2>
-
-    <div
-      style={{
-        whiteSpace: "pre-wrap",
-        lineHeight: "1.8",
-      }}
-    >
-      {meetingNotes}
-    </div>
   </div>
 )}
 
 
-{activeView === "researchNotes" && (
-  <div className="analysis-result">
-    <h2>🔬 Research Notes</h2>
+          {/* ================= AI Chat ================= */}
 
-    <div
-      style={{
-        whiteSpace: "pre-wrap",
-        lineHeight: "1.8",
-      }}
-    >
-      {researchNotes}
-    </div>
-  </div>
-)}
-
-
-              {/* ================= AI Chat ================= */}
-
-              {/* {activeView === "chat" && (
+          {/* {activeView === "chat" && (
     <div className="chat-card">
 
       <div className="card-header">
@@ -1530,18 +1737,18 @@ const exportDOCX = async () => {
     </div>
     )} */}
 
-              {activeView === "chat" && (
-                <ChatView
-                  messages={messages}
-                  thinking={thinking}
-                  question={question}
-                  setQuestion={setQuestion}
-                  askQuestion={askQuestion}
-                />
-              )}
-            </div>   {/* Content Container */}
+          {activeView === "chat" && (
+            <ChatView
+              messages={messages}
+              thinking={thinking}
+              question={question}
+              setQuestion={setQuestion}
+              askQuestion={askQuestion}
+            />
+          )}
+        </div>   {/* Content Container */}
 
-        </div>     {/* Grid Container */}
+      </div>     {/* Grid Container */}
 
     </section>
   );

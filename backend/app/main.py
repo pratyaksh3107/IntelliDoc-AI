@@ -13,6 +13,7 @@ from app.routes.faq_routes import router as faq_router
 from app.routes.meeting_notes_routes import router as meeting_notes_router
 from app.routes.research_notes_routes import router as research_notes_router
 from app.routes.export_routes import router as export_router
+from app.routes.compare_routes import router as compare_router
 
 
 app = FastAPI(
@@ -38,6 +39,7 @@ app.include_router(faq_router)
 app.include_router(meeting_notes_router)
 app.include_router(research_notes_router)
 app.include_router(export_router)
+app.include_router(compare_router)
 
 # ===========================
 # CORS

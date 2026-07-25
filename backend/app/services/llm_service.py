@@ -633,3 +633,89 @@ SUMMARY
 """
 
     return call_llm(prompt)
+
+
+def generate_document_comparison(
+    context1,
+    context2,
+    provider
+):
+
+    prompt = f"""
+You are IntelliDoc AI.
+
+You are an expert document comparison assistant.
+
+Compare ONLY the two uploaded documents.
+
+Never use outside knowledge.
+Never hallucinate.
+Use only the information present in both documents.
+
+------------------------------------------------------------
+
+DOCUMENT 1
+
+{context1}
+
+------------------------------------------------------------
+
+DOCUMENT 2
+
+{context2}
+
+------------------------------------------------------------
+
+OUTPUT FORMAT
+
+# 📄 Overall Summary
+
+Write a short comparison overview.
+
+------------------------------------------------------------
+
+# ✅ Similarities
+
+List all major similarities.
+
+------------------------------------------------------------
+
+# ❌ Differences
+
+List all major differences.
+
+------------------------------------------------------------
+
+# 📚 Common Topics
+
+Mention topics present in both documents.
+
+------------------------------------------------------------
+
+# ⭐ Unique Topics
+
+### Document 1
+
+Mention topics only present in Document 1.
+
+### Document 2
+
+Mention topics only present in Document 2.
+
+------------------------------------------------------------
+
+# 📊 Comparison Table
+
+| Feature | Document 1 | Document 2 |
+
+Fill the table using Markdown.
+
+------------------------------------------------------------
+
+# 🎯 Final Conclusion
+
+Give a concise conclusion in 4–6 lines.
+
+"""
+
+    return generate_response(prompt, provider)
