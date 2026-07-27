@@ -83,9 +83,30 @@ function UploadSection() {
   const [faq, setFaq] = useState("");
   const [loadingFaq, setLoadingFaq] = useState(false);
 
-  useEffect(() => {
-    fetchDocuments();
-  }, []);
+  const [docSearchQuery, setDocSearchQuery] = useState("");
+  const [toast, setToast] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null);
+
+  const showToast = (message, type = "info") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 3500);
+  };
+
+  const handleSelectDocument = (doc) => {
+    setCurrentDocumentId(doc.document_id);
+    setUploadedDocuments([
+      {
+        document_id: doc.document_id,
+        filename: doc.filename,
+        pages: doc.pages || "N/A",
+        chunks: doc.chunks || 0,
+        preview: doc.preview || `Document "${doc.filename}" selected from Knowledge Base.`,
+      },
+    ]);
+    showToast(`Opened "${doc.filename}" from Document Library`, "success");
+  };
 
   const fetchDocuments = async () => {
     try {
@@ -98,14 +119,58 @@ function UploadSection() {
       console.log("Response Status:", response.status);
       console.log("Response Data:", data);
 
-      setDocuments(data.documents || []);
+      const fetchedDocs = data.documents || [];
+      setDocuments(fetchedDocs);
       setDocumentCount(data.count || 0);
+
+      // Startup auto-selection disabled as requested
 
     } catch (error) {
       console.log(error);
     }
   };
 
+  const handleDeleteDocument = (documentId) => {
+    const docToDelete = documents.find((d) => d.document_id === documentId);
+    const docName = docToDelete ? docToDelete.filename : "this document";
+
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Document",
+      message: `Are you sure you want to delete "${docName}" from your library? This action cannot be undone.`,
+      confirmText: "Delete",
+      isDanger: true,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        try {
+          const response = await fetch(`http://localhost:8000/document/${documentId}`, {
+            method: "DELETE",
+          });
+
+          const data = await response.json();
+          if (response.ok) {
+            showToast(data.message || "Document deleted successfully.", "success");
+            if (currentDocumentId === documentId) {
+              setCurrentDocumentId(null);
+              setUploadedDocuments([]);
+            }
+            await fetchDocuments();
+          } else {
+            showToast(data.detail || "Failed to delete document.", "error");
+          }
+        } catch (error) {
+          console.error(error);
+          showToast("Error deleting document.", "error");
+        }
+      },
+      onCancel: () => setConfirmModal(null),
+    });
+  };
+
+  const handleDownloadDocument = (documentId) => {
+    window.open(`http://localhost:8000/download/${documentId}`, "_blank");
+    showToast("Starting document download...", "info");
+  };
 
   const handleFileChange = (event) => {
 
@@ -124,10 +189,43 @@ function UploadSection() {
   const handleUpload = async () => {
 
     if (selectedFiles.length === 0) {
-      alert("Please select at least one file.");
+      showToast("Please select at least one file.", "error");
       return;
     }
 
+    // Check for duplicate uploads
+    const existingDoc = documents.find((doc) =>
+      selectedFiles.some(
+        (file) => doc.filename.toLowerCase() === file.name.toLowerCase()
+      )
+    );
+
+    if (existingDoc) {
+      setConfirmModal({
+        isOpen: true,
+        title: "Document Already Exists",
+        message: `"${existingDoc.filename}" is already in your Document Library. Would you like to re-upload and overwrite it, or open the existing document?`,
+        confirmText: "Re-upload & Overwrite",
+        isDanger: false,
+        onConfirm: () => {
+          setConfirmModal(null);
+          executeUpload();
+        },
+        onCancel: () => {
+          setConfirmModal(null);
+          handleSelectDocument(existingDoc);
+          setSelectedFiles([]);
+          setFileName("");
+          setActiveView("analysis");
+        },
+      });
+      return;
+    }
+
+    executeUpload();
+  };
+
+  const executeUpload = async () => {
     setUploading(true);
 
     const formData = new FormData();
@@ -149,7 +247,7 @@ function UploadSection() {
       const data = await response.json();
 
       if (data.error) {
-        alert(data.error);
+        showToast(data.error, "error");
         setUploading(false);
         return;
       }
@@ -166,7 +264,7 @@ function UploadSection() {
 
       await fetchDocuments();
 
-      alert(`${data.documents.length} document(s) uploaded successfully.`);
+      showToast(`${data.documents.length} document(s) uploaded successfully.`, "success");
 
       setSelectedFiles([]);
       setFileName("");
@@ -174,7 +272,7 @@ function UploadSection() {
     } catch (err) {
 
       console.log(err);
-      alert("Upload Failed");
+      showToast("Upload Failed", "error");
 
     }
 
@@ -939,102 +1037,110 @@ const handleCompareDocuments = async () => {
 
               </div>
 
+              {/* Document Library Search Bar */}
+              <div className="library-search-box">
+                <Search size={18} className="library-search-icon" />
+                <input
+                  type="text"
+                  className="library-search-input"
+                  placeholder="Search document library by filename..."
+                  value={docSearchQuery}
+                  onChange={(e) => setDocSearchQuery(e.target.value)}
+                />
+              </div>
+
               <ul className="documents-list">
 
                 {documents.length === 0 ? (
 
-                  <li>No Documents Uploaded</li>
+                  <li className="doc-item">No Documents Uploaded</li>
 
                 ) : (
 
-                  documents.map((doc) => (
+                  (() => {
+                    const filteredDocs = documents.filter((doc) =>
+                      doc.filename.toLowerCase().includes(docSearchQuery.toLowerCase())
+                    );
 
-                    <li
-                      key={doc.document_id}
-                      onClick={() => {
+                    if (filteredDocs.length === 0) {
+                      return <li className="doc-item">No matching documents found.</li>;
+                    }
 
-                        setCurrentDocumentId(doc.document_id);
+                    return filteredDocs.map((doc) => {
+                      const isSelected = currentDocumentId === doc.document_id;
+                      return (
+                        <li
+                          key={doc.document_id}
+                          className={`doc-item ${isSelected ? "active" : ""}`}
+                          onClick={() => {
+                            handleSelectDocument(doc);
+                            setActiveView("analysis");
+                          }}
+                        >
 
-                        alert(`Selected: ${doc.filename}`);
+                          <div className="doc-item-main">
+                            <FileText size={22} color={isSelected ? "#2563eb" : "#64748b"} />
 
-                      }}
-                      style={{
-                        cursor: "pointer",
-                        border:
-                          currentDocumentId === doc.document_id
-                            ? "2px solid #2563eb"
-                            : "1px solid #ddd",
-                        borderRadius: "8px",
-                        padding: "10px",
-                        marginBottom: "10px",
-                      }}
-                    >
+                            <div>
+                              <div className="doc-title-row">
+                                <span className="doc-filename">
+                                  {doc.filename}
+                                </span>
+                                {isSelected && (
+                                  <span className="doc-badge">
+                                    Active
+                                  </span>
+                                )}
+                              </div>
 
-                      <FileText size={16} />
+                              <div className="doc-meta">
+                                <span>{doc.file_type ? doc.file_type.toUpperCase() : "PDF"} • {doc.chunks} Chunks</span>
+                                {doc.upload_date && (
+                                  <span className="doc-date">
+                                    🕒 {doc.upload_date}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
 
-                      <div>
+                          <div className="doc-actions">
+                            <button
+                              className="doc-action-btn open"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectDocument(doc);
+                                setActiveView("analysis");
+                              }}
+                            >
+                              {isSelected ? "Opened" : "Open"}
+                            </button>
 
-                        <strong>{doc.filename}</strong>
+                            <button
+                              className="doc-action-btn download"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadDocument(doc.document_id);
+                              }}
+                            >
+                              Download
+                            </button>
 
-                        <br />
+                            <button
+                              className="doc-action-btn delete"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteDocument(doc.document_id);
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
 
-                        <small>
-                          {doc.file_type.toUpperCase()} • {doc.chunks} Chunks
-                        </small>
-
-                      </div>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteDocument(doc.document_id);
-                        }}
-                        style={{
-                          marginTop: "8px",
-                          padding: "5px 10px",
-                          background: "#ef4444",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "5px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Delete
-                      </button>
-
-                      <div>
-
-                        <strong>{doc.filename}</strong>
-
-                        <br />
-
-                        <small>
-                          {doc.file_type.toUpperCase()} • {doc.chunks} Chunks
-                        </small>
-
-                      </div>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteDocument(doc.document_id);
-                        }}
-                      >
-                        Delete
-                      </button>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownloadDocument(doc.document_id);
-                        }}
-                      >
-                        Download
-                      </button>
-
-                    </li>
-
-                  ))
+                        </li>
+                      );
+                    });
+                  })()
 
                 )}
 
@@ -1749,6 +1855,39 @@ const handleCompareDocuments = async () => {
         </div>   {/* Content Container */}
 
       </div>     {/* Grid Container */}
+
+      {/* Floating Toast Notification */}
+      {toast && (
+        <div className="toast-container">
+          <div className={`toast-box ${toast.type}`}>
+            <span>{toast.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Confirmation Modal */}
+      {confirmModal && confirmModal.isOpen && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <h4>{confirmModal.title}</h4>
+            <p>{confirmModal.message}</p>
+            <div className="modal-footer">
+              <button
+                className="modal-btn-cancel"
+                onClick={confirmModal.onCancel}
+              >
+                Cancel
+              </button>
+              <button
+                className={`modal-btn-confirm ${confirmModal.isDanger ? "danger" : ""}`}
+                onClick={confirmModal.onConfirm}
+              >
+                {confirmModal.confirmText || "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </section>
   );
