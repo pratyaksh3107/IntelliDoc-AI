@@ -2,121 +2,104 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional
 import time
+import logging
+import re
+from datetime import datetime
 
 from app.services.embedding_service import generate_embeddings
-from app.services.vector_service import (
-    semantic_search,
-    get_context_from_results,
-)
+from app.services.vector_service import semantic_search
 from app.services.llm_service import generate_answer
+from app.routes.global_ai_routes import expand_query, compress_context, compute_grounded_confidence
 
 router = APIRouter()
-
 
 class QuestionRequest(BaseModel):
     question: str
     document_id: Optional[str] = None
     provider: Optional[str] = "ollama"
 
-
 @router.post("/ask")
 async def ask_ai(data: QuestionRequest):
-
-    print("ASK ROUTE EXECUTED")
-
-    total_start = time.time()
-
-    # ==========================
-    # Embedding
-    # ==========================
-
-    embedding_start = time.time()
-
-    query_embedding = generate_embeddings(
-        [data.question]
-    )[0]
-
-    print(
-        f"Embedding Time: {time.time() - embedding_start:.2f} sec"
-    )
-
-    # ==========================
-    # Semantic Search
-    # ==========================
-
-    search_start = time.time()
-
-    if data.document_id:
-
-        print(f"\nSearching ONLY document : {data.document_id}\n")
-
-        results = semantic_search(
-            query_embedding,
-            top_k=5,
-            where={
-                "document_id": data.document_id
+    try:
+        if not data.question or not data.question.strip():
+            return {
+                "question": data.question,
+                "answer": "Please provide a valid question."
             }
-        )
 
-    else:
+        start_time = time.time()
+        
+        expanded_query = expand_query(data.question)
+        query_embedding = generate_embeddings([expanded_query])[0]
 
-        print("\nSearching Entire Knowledge Base\n")
+        # ── Retrieve candidates ──
+        where_clause = {"document_id": data.document_id} if data.document_id else None
+        results = semantic_search(query_embedding, top_k=20, where=where_clause)
 
-        results = semantic_search(
-            query_embedding,
-            top_k=5
-        )
+        if not results or not results.get("documents") or not results["documents"][0]:
+            return {
+                "question": data.question,
+                "answer": "Insufficient evidence found in this document to answer your question."
+            }
 
-    print("\n========== SEARCH RESULTS ==========")
-    print(results)
-    print("====================================\n")
+        raw_docs = results["documents"][0]
+        raw_metadatas = results.get("metadatas", [[]])[0]
+        raw_distances = results.get("distances", [[]])[0]
 
-    context, metadata = get_context_from_results(results)
-    if not context.strip():
-      return {
-        "question": data.question,
-        "answer": "Information not found in the uploaded document."
-    }
+        query_words = set(re.findall(r'\b\w+\b', data.question.lower()))
 
-    print("\n========== METADATA ==========\n")
-    print(metadata)
+        candidates = []
+        seen_texts = set()
 
-    print("\n========== RETRIEVED CONTEXT ==========\n")
-    print(context)
+        for idx, text in enumerate(raw_docs):
+            # Duplicate chunk removal
+            text_snippet = text.strip()[:100]
+            if text_snippet in seen_texts:
+                continue
+            seen_texts.add(text_snippet)
 
-    print(
-        f"\nSearch Time: {time.time() - search_start:.2f} sec"
-    )
+            meta = raw_metadatas[idx] if idx < len(raw_metadatas) and raw_metadatas[idx] else {}
+            dist = raw_distances[idx] if idx < len(raw_distances) else 1.0
+            sem_score = max(0.0, min(1.0, 1.0 - (dist / 2.0)))
 
-    # ==========================
-    # LLM
-    # ==========================
+            text_words = set(re.findall(r'\b\w+\b', text.lower()))
+            kw_overlap = len(query_words & text_words) / max(1, len(query_words))
 
-    llm_start = time.time()
-    print("\n================ PROMPT TEST ================\n")
-    print("QUESTION:")
-    print(data.question)
+            # Since it's document-specific, title bonus is less relevant, rely mostly on semantic and keyword
+            hybrid_score = (sem_score * 0.6) + (kw_overlap * 0.4)
 
-    print("\nCONTEXT:")
-    print(context)
+            candidates.append({
+                "document_id": meta.get("document_id", "unknown"),
+                "filename": meta.get("filename", "Document"),
+                "page": meta.get("page", 1),
+                "text": text,
+                "sem_score": sem_score,
+                "hybrid_score": hybrid_score
+            })
 
-    print("\n=============================================\n")
+        candidates.sort(key=lambda x: x["hybrid_score"], reverse=True)
+        selected = candidates[:5]
 
-    answer = generate_answer(
-    context,
-    data.question,
-    data.provider
-)
+        # ── Threshold check ──
+        conf_pct, _, _ = compute_grounded_confidence(candidates, selected)
+        if conf_pct < 35: # slightly lower threshold for specific doc Q&A
+            return {
+                "question": data.question,
+                "answer": "Insufficient evidence found in the document to answer accurately."
+            }
 
-    print(
-        f"LLM Time: {time.time() - llm_start:.2f} sec"
-    )
+        context = compress_context(selected)
 
-    print(
-        f"Total Time: {time.time() - total_start:.2f} sec"
-    )
+        answer = generate_answer(context, data.question, data.provider or "ollama")
 
-    return {
-        "question": data.question,
-        "answer": answer
-    }
+        return {
+            "question": data.question,
+            "answer": answer
+        }
+
+    except Exception as e:
+        logging.error(f"Ask AI Error: {e}")
+        return {
+            "question": data.question,
+            "answer": f"⚠️ Engine Error: {str(e)}"
+        }

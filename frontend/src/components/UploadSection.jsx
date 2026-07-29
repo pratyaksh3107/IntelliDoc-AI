@@ -8,9 +8,14 @@ import {
   Database,
   CheckCircle,
   Loader2,
+  HelpCircle,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import Sidebar from "./Sidebar";
+import Header from "./Header";
+import RightPanel from "./RightPanel";
+import OverviewView from "../views/OverviewView";
+import GlobalAIView from "../views/GlobalAIView";
 import ChatView from "../views/ChatView";
 import remarkGfm from "remark-gfm";
 import { useState, useEffect, useRef } from "react";
@@ -48,7 +53,7 @@ function UploadSection() {
 
   const [studyNotes, setStudyNotes] = useState("");
   const [loadingNotes, setLoadingNotes] = useState(false);
-  const [activeView, setActiveView] = useState("analysis");
+  const [activeView, setActiveView] = useState("overview");
   const flashcardRef = useRef(null);
 
   const [selectedCompareDocs, setSelectedCompareDocs] = useState([]);
@@ -150,11 +155,12 @@ function UploadSection() {
           const data = await response.json();
           if (response.ok) {
             showToast(data.message || "Document deleted successfully.", "success");
+            setDocuments((prev) => prev.filter((d) => d.document_id !== documentId));
+            setDocumentCount((prev) => Math.max(0, prev - 1));
             if (currentDocumentId === documentId) {
               setCurrentDocumentId(null);
               setUploadedDocuments([]);
             }
-            await fetchDocuments();
           } else {
             showToast(data.detail || "Failed to delete document.", "error");
           }
@@ -173,21 +179,13 @@ function UploadSection() {
   };
 
   const handleFileChange = (event) => {
-
     const files = Array.from(event.target.files);
-
     if (files.length === 0) return;
-
     setSelectedFiles(files);
-
-    setFileName(
-      files.map(file => file.name).join(", ")
-    );
-
+    setFileName(files.map((file) => file.name).join(", "));
   };
 
   const handleUpload = async () => {
-
     if (selectedFiles.length === 0) {
       showToast("Please select at least one file.", "error");
       return;
@@ -229,20 +227,15 @@ function UploadSection() {
     setUploading(true);
 
     const formData = new FormData();
-
     selectedFiles.forEach((file) => {
       formData.append("files", file);
     });
 
     try {
-
-      const response = await fetch(
-        "http://localhost:8000/upload",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const response = await fetch("http://localhost:8000/upload", {
+        method: "POST",
+        body: formData,
+      });
 
       const data = await response.json();
 
@@ -253,31 +246,29 @@ function UploadSection() {
       }
 
       if (data.documents && data.documents.length > 0) {
+        const newDocs = data.documents;
+        setUploadedDocuments(newDocs);
+        setCurrentDocumentId(newDocs[0].document_id);
 
-        setUploadedDocuments(data.documents);
-
-        setCurrentDocumentId(
-          data.documents[0].document_id
-        );
-
+        // Incremental state mutation: append newly uploaded files to state without full refresh
+        setDocuments((prev) => {
+          const newDocIds = new Set(newDocs.map((d) => d.document_id));
+          const filteredPrev = prev.filter((d) => !newDocIds.has(d.document_id));
+          return [...newDocs, ...filteredPrev];
+        });
+        setDocumentCount((prev) => prev + newDocs.length);
       }
 
-      await fetchDocuments();
-
-      showToast(`${data.documents.length} document(s) uploaded successfully.`, "success");
+      showToast(`${data.documents.length} document(s) indexed successfully into Knowledge Base.`, "success");
 
       setSelectedFiles([]);
       setFileName("");
-
     } catch (err) {
-
       console.log(err);
       showToast("Upload Failed", "error");
-
     }
 
     setUploading(false);
-
   };
 
   const handleSearch = async () => {
@@ -760,94 +751,40 @@ function UploadSection() {
 
   };
 
-  const handleDeleteDocument = async (documentId) => {
+  const handleCompareDocuments = async () => {
+    if (selectedCompareDocs.length !== 2) {
+      alert("Please select exactly 2 documents.");
+      return;
+    }
 
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this document?"
-    );
-
-    if (!confirmDelete) return;
+    setLoadingComparison(true);
 
     try {
-
       const response = await fetch(
-        `http://localhost:8000/document/${documentId}`,
+        "http://localhost:8000/compare",
         {
-          method: "DELETE",
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            document_id_1: selectedCompareDocs[0],
+            document_id_2: selectedCompareDocs[1],
+            provider: aiProvider,
+          }),
         }
       );
 
       const data = await response.json();
-
-      alert(data.message);
-
-      fetchDocuments();
-
-      if (currentDocumentId === documentId) {
-        setCurrentDocumentId(null);
-      }
-
+      console.log("Comparison:", data);
+      setComparison(data.comparison || "No comparison generated.");
+      setActiveView("comparison");
     } catch (error) {
       console.error(error);
-      alert("Failed to delete document.");
+      alert("Comparison failed.");
+    } finally {
+      setLoadingComparison(false);
     }
-  };
-
-const handleCompareDocuments = async () => {
-
-  if (selectedCompareDocs.length !== 2) {
-    alert("Please select exactly 2 documents.");
-    return;
-  }
-
-  setLoadingComparison(true);
-
-  try {
-
-    const response = await fetch(
-      "http://localhost:8000/compare",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-  document_id_1: selectedCompareDocs[0],
-  document_id_2: selectedCompareDocs[1],
-  provider: aiProvider,
-}),
-      }
-    );
-
-    const data = await response.json();
-
-    console.log("Comparison:", data);
-
-    setComparison(data.comparison || "No comparison generated.");
-
-    setActiveView("comparison");
-
-  } catch (error) {
-
-    console.error(error);
-    alert("Comparison failed.");
-
-  } finally {
-
-    setLoadingComparison(false);
-
-  }
-
-};
-
-
-  const handleDownloadDocument = (documentId) => {
-
-    window.open(
-      `http://localhost:8000/download/${documentId}`,
-      "_blank"
-    );
-
   };
 
 
@@ -924,26 +861,53 @@ const handleCompareDocuments = async () => {
   console.log("Documents State:", documents);
 
   return (
-    <section className="upload-container">
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "260px 1fr",
-          gap: "25px",
-          alignItems: "start",
+    <div className="app-main-layout">
+      <Header
+        documents={documents}
+        currentDocumentId={currentDocumentId}
+        onSelectDocument={handleSelectDocument}
+        aiProvider={aiProvider}
+        setAiProvider={setAiProvider}
+        activeView={activeView}
+        setActiveView={setActiveView}
+        onOpenUploadModal={() => {
+          setActiveView("analysis");
+          window.scrollTo({ top: 0, behavior: "smooth" });
         }}
-      >
+      />
 
+      <div className="app-body-grid">
         <Sidebar
           activeView={activeView}
           setActiveView={setActiveView}
+          documentCount={documentCount}
         />
 
-        <div>
+        <main className="app-workspace-area">
+          {activeView === "overview" && (
+            <OverviewView
+              documentCount={documentCount}
+              totalChunks={documents.reduce((acc, d) => acc + (d.chunks || 0), 0)}
+              onNavigate={setActiveView}
+            />
+          )}
+
+          {activeView === "globalAI" && (
+            <GlobalAIView
+              documents={documents}
+              currentDocumentId={currentDocumentId}
+              setCurrentDocumentId={(id) => {
+                const doc = documents.find((d) => d.document_id === id);
+                if (doc) handleSelectDocument(doc);
+              }}
+              aiProvider={aiProvider}
+              showToast={showToast}
+            />
+          )}
 
           {/* ================= Upload ================= */}
 
+          {activeView === "analysis" && (
           <div className="upload-card">
 
             <div className="card-header">
@@ -1005,165 +969,147 @@ const handleCompareDocuments = async () => {
             </button>
 
           </div>
+          )}
 
 
 
           {activeView === "documents" && (
-            <div className="documents-card">
-
-              <div className="card-header">
-
-                <div className="card-icon">
-
-                  <Database size={24} />
-
+            <div className="card">
+              <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%" }}>
+                <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                  <div className="doc-library-icon-box">
+                    <FileText size={24} />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: "1.25rem", fontWeight: "700", color: "#f8fafc", margin: 0 }}>Document Library</h2>
+                    <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: "0.25rem 0 0" }}>
+                      Manage and review all indexed PDF documents in your knowledge base.
+                    </p>
+                  </div>
                 </div>
-
-                <div>
-
-                  <h3>Knowledge Base</h3>
-
-                  <p>Your uploaded documents</p>
-
-                </div>
-
+                <button
+                  onClick={() => setActiveView("analysis")}
+                  style={{
+                    background: "linear-gradient(135deg, #a855f7 0%, #6366f1 100%)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "10px",
+                    padding: "0.6rem 1.1rem",
+                    fontWeight: "600",
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)"
+                  }}
+                >
+                  <Upload size={16} /> Upload New PDF
+                </button>
               </div>
 
-              <div className="stats-box">
-
-                <h1>{documentCount}</h1>
-
-                <span>Total Documents</span>
-
-              </div>
-
-              {/* Document Library Search Bar */}
-              <div className="library-search-box">
-                <Search size={18} className="library-search-icon" />
-                <input
-                  type="text"
-                  className="library-search-input"
-                  placeholder="Search document library by filename..."
-                  value={docSearchQuery}
-                  onChange={(e) => setDocSearchQuery(e.target.value)}
-                />
-              </div>
-
-              <ul className="documents-list">
-
+              <div className="doc-library-grid">
                 {documents.length === 0 ? (
-
-                  <li className="doc-item">No Documents Uploaded</li>
-
+                  <div style={{ display: "flex", justifyContent: "flex-start", marginTop: "1rem", width: "100%", gridColumn: "1 / -1" }}>
+                    <div style={{
+                      background: "rgba(18, 22, 36, 0.75)",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      borderRadius: "20px",
+                      padding: "3.5rem 2.5rem",
+                      textAlign: "center",
+                      width: "380px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "1.25rem",
+                      boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+                    }}>
+                      <div style={{
+                        background: "rgba(255, 255, 255, 0.05)",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
+                        width: "68px",
+                        height: "68px",
+                        borderRadius: "16px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#64748b"
+                      }}>
+                        <FileText size={32} />
+                      </div>
+                      <div>
+                        <h3 style={{ color: "#f8fafc", fontSize: "1.25rem", fontWeight: "700", margin: "0 0 0.5rem" }}>Your Library is Empty</h3>
+                        <p style={{ color: "#94a3b8", fontSize: "0.85rem", lineHeight: "1.5", margin: 0 }}>
+                          Upload a PDF document to begin interacting with IntelliDoc AI.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-
-                  (() => {
-                    const filteredDocs = documents.filter((doc) =>
-                      doc.filename.toLowerCase().includes(docSearchQuery.toLowerCase())
-                    );
-
-                    if (filteredDocs.length === 0) {
-                      return <li className="doc-item">No matching documents found.</li>;
-                    }
-
-                    return filteredDocs.map((doc) => {
-                      const isSelected = currentDocumentId === doc.document_id;
-                      return (
-                        <li
-                          key={doc.document_id}
-                          className={`doc-item ${isSelected ? "active" : ""}`}
-                          onClick={() => {
-                            handleSelectDocument(doc);
-                            setActiveView("analysis");
-                          }}
-                        >
-
-                          <div className="doc-item-main">
-                            <FileText size={22} color={isSelected ? "#2563eb" : "#64748b"} />
-
-                            <div>
-                              <div className="doc-title-row">
-                                <span className="doc-filename">
-                                  {doc.filename}
-                                </span>
-                                {isSelected && (
-                                  <span className="doc-badge">
-                                    Active
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="doc-meta">
-                                <span>{doc.file_type ? doc.file_type.toUpperCase() : "PDF"} • {doc.chunks} Chunks</span>
-                                {doc.upload_date && (
-                                  <span className="doc-date">
-                                    🕒 {doc.upload_date}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                  documents.map((doc) => {
+                    const isSelected = currentDocumentId === doc.document_id;
+                    return (
+                      <div
+                        key={doc.document_id}
+                        className={`doc-library-card ${isSelected ? "selected-card" : ""}`}
+                        onClick={() => {
+                          handleSelectDocument(doc);
+                        }}
+                      >
+                        <div className="doc-library-top">
+                          <div className="doc-library-icon-box">
+                            <FileText size={20} />
                           </div>
-
-                          <div className="doc-actions">
+                          <div className="doc-library-actions">
                             <button
-                              className="doc-action-btn open"
+                              className="doc-action-btn"
+                              title="Download PDF"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleSelectDocument(doc);
-                                setActiveView("analysis");
+                                window.open(`http://localhost:8000/document/${doc.document_id}/download`, "_blank");
                               }}
                             >
-                              {isSelected ? "Opened" : "Open"}
+                              ↓
                             </button>
-
                             <button
-                              className="doc-action-btn download"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownloadDocument(doc.document_id);
-                              }}
-                            >
-                              Download
-                            </button>
-
-                            <button
-                              className="doc-action-btn delete"
+                              className="doc-action-btn delete-btn"
+                              title="Delete Document"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteDocument(doc.document_id);
                               }}
                             >
-                              Delete
+                              🗑
                             </button>
                           </div>
+                        </div>
 
-                        </li>
-                      );
-                    });
-                  })()
+                        <div className="doc-library-content">
+                          <div className="doc-library-filename" title={doc.filename}>
+                            {doc.filename}
+                          </div>
+                          <div className="doc-library-date">
+                            {doc.upload_date || "2026-07-19 23:53:49"}
+                          </div>
+                        </div>
 
+                        <div className="doc-library-footer">
+                          <span className="doc-chunk-pill">
+                            {doc.chunks || 0} Chunks
+                          </span>
+                          {isSelected && (
+                            <span className="doc-selected-pill">
+                              Selected
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
-
-              </ul>
-
+              </div>
             </div>
           )}
-
-
-
-          <div className="provider-card">
-
-            <label>🤖 AI Provider</label>
-
-            <select
-              value={aiProvider}
-              onChange={(e) => setAiProvider(e.target.value)}
-            >
-              <option value="ollama">🟢 Ollama (Local)</option>
-              <option value="gemini">🟣 Gemini (Cloud)</option>
-            </select>
-
-          </div>
 
 
           {/* ================= File Analysis ================= */}
@@ -1452,97 +1398,112 @@ const handleCompareDocuments = async () => {
 
           {/* ================= Semantic Search ================= */}
 
-          {activeView === "search" && (
-            <div className="search-card">
-
-              <div className="card-header">
-
-                <div className="card-icon">
-
-                  <Search size={24} />
-
+          {(activeView === "search" || activeView === "keywordSearch") && (
+            <div className="card">
+              <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%" }}>
+                <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                  <div className="doc-library-icon-box">
+                    <Search size={24} />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: "1.25rem", fontWeight: "700", color: "#f8fafc", margin: 0 }}>
+                      {activeView === "search" ? "Semantic Knowledge Search" : "Keyword Knowledge Search"}
+                    </h2>
+                    <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: "0.25rem 0 0" }}>
+                      {activeView === "search"
+                        ? "Query ChromaDB vector database directly to locate exact text passages."
+                        : "Exact keyword matching across your indexed PDF documents."}
+                    </p>
+                  </div>
                 </div>
-
-                <div>
-
-                  <h3>Semantic Search</h3>
-
-                  <p>Search using AI Embeddings</p>
-
-                </div>
-
               </div>
 
-              <div className="search-input">
-
+              <div style={{
+                display: "flex",
+                gap: "0.75rem",
+                background: "rgba(18, 22, 36, 0.75)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "14px",
+                padding: "0.5rem 0.5rem 0.5rem 1rem",
+                alignItems: "center",
+                margin: "1.25rem 0 1.5rem"
+              }}>
+                <Search size={18} color="#94a3b8" />
                 <input
                   type="text"
-                  placeholder="Search your documents..."
+                  placeholder={activeView === "search" ? "Query ChromaDB vector database directly to locate exact text passages..." : "Enter keyword or phrase to search across documents..."}
                   value={searchQuery}
-                  onChange={(e) =>
-                    setSearchQuery(e.target.value)
-                  }
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#f8fafc",
+                    fontSize: "0.95rem",
+                    width: "100%",
+                    outline: "none"
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 />
-
                 <button
-                  className="search-btn"
                   onClick={handleSearch}
+                  style={{
+                    background: "linear-gradient(135deg, #a855f7 0%, #6366f1 100%)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "10px",
+                    padding: "0.6rem 1.4rem",
+                    fontWeight: "600",
+                    fontSize: "0.9rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)"
+                  }}
                 >
-
-                  {searching ? (
-
-                    <Loader2
-                      className="spin"
-                      size={18}
-                    />
-
-                  ) : (
-
-                    <Search size={18} />
-
-                  )}
-
+                  {searching ? <Loader2 className="spin" size={16} /> : null}
+                  Search
                 </button>
-
               </div>
 
               {searchResult && (
-
-                <div className="result-box">
-
-                  <h4>
-
-                    Results for :
-
-                    <span> {searchResult.query}</span>
-
-                  </h4>
-
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}>
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: "700", color: "#f8fafc", margin: "0 0 0.5rem" }}>
+                    Search Results ({searchResult.results.length} matching passages)
+                  </h3>
                   {searchResult.results.length === 0 ? (
-
-                    <p>No results found.</p>
-
+                    <p style={{ color: "#94a3b8" }}>No matching text passages found.</p>
                   ) : (
-
                     searchResult.results.map((item, index) => (
-
                       <div
-                        className="result-item"
                         key={index}
+                        style={{
+                          background: "rgba(18, 22, 36, 0.75)",
+                          border: "1px solid rgba(255, 255, 255, 0.08)",
+                          borderRadius: "16px",
+                          padding: "1.25rem",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "0.75rem",
+                          boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)"
+                        }}
                       >
-
-                        {item}
-
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ color: "#94a3b8", fontSize: "0.85rem", fontWeight: "600" }}>
+                            Passage #{index + 1}
+                          </span>
+                          <span className="doc-chunk-pill">
+                            {activeView === "search" ? "Similarity Match" : "Keyword Match"}
+                          </span>
+                        </div>
+                        <div style={{ color: "#e2e8f0", fontSize: "0.95rem", lineHeight: "1.6" }}>
+                          {item}
+                        </div>
                       </div>
-
                     ))
-
                   )}
-
                 </div>
-
               )}
-
             </div>
           )}
 
@@ -1669,70 +1630,297 @@ const handleCompareDocuments = async () => {
           )}
 
           {activeView === "faq" && (
-            <div className="analysis-result">
-              <h2>❓ Frequently Asked Questions</h2>
-
-              <div
-                style={{
-                  whiteSpace: "pre-wrap",
-                  lineHeight: "1.8",
-                }}
-              >
-                {faq}
+            <div className="card">
+              <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%" }}>
+                <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                  <div className="doc-library-icon-box">
+                    <HelpCircle size={24} />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: "1.25rem", fontWeight: "700", color: "#f8fafc", margin: 0 }}>FAQ Generator</h2>
+                    <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: "0.25rem 0 0" }}>
+                      Automatically generate frequently asked questions and answers from your document.
+                    </p>
+                  </div>
+                </div>
+                {currentDocumentId && (
+                  <button
+                    onClick={handleFaq}
+                    disabled={loadingFaq}
+                    style={{
+                      background: "linear-gradient(135deg, #a855f7 0%, #6366f1 100%)",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "0.6rem 1.1rem",
+                      fontWeight: "600",
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)"
+                    }}
+                  >
+                    {loadingFaq ? <Loader2 className="spin" size={16} /> : <HelpCircle size={16} />}
+                    {loadingFaq ? "Generating..." : "Generate FAQs"}
+                  </button>
+                )}
               </div>
+
+              {faq ? (
+                <div className="markdown-output" style={{ whiteSpace: "pre-wrap", lineHeight: "1.8", color: "#e2e8f0", marginTop: "1rem" }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{faq}</ReactMarkdown>
+                </div>
+              ) : (
+                <div style={{ color: "#94a3b8", padding: "2rem 0", textAlign: "center" }}>
+                  {currentDocumentId
+                    ? "Click 'Generate FAQs' above to extract key questions from the active document."
+                    : "No Document Selected. Please select a document from the top dropdown or upload a PDF first."}
+                </div>
+              )}
             </div>
           )}
 
           {activeView === "meetingNotes" && (
-            <div className="analysis-result">
-              <h2>📝 Meeting Notes</h2>
-
-              <div
-                style={{
-                  whiteSpace: "pre-wrap",
-                  lineHeight: "1.8",
-                }}
-              >
-                {meetingNotes}
+            <div className="card">
+              <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%" }}>
+                <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                  <div className="doc-library-icon-box">
+                    <FileText size={24} />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: "1.25rem", fontWeight: "700", color: "#f8fafc", margin: 0 }}>Meeting Notes</h2>
+                    <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: "0.25rem 0 0" }}>
+                      Extract action items, key decisions, and executive meeting notes.
+                    </p>
+                  </div>
+                </div>
+                {currentDocumentId && (
+                  <button
+                    onClick={handleMeetingNotes}
+                    disabled={loadingMeetingNotes}
+                    style={{
+                      background: "linear-gradient(135deg, #a855f7 0%, #6366f1 100%)",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "0.6rem 1.1rem",
+                      fontWeight: "600",
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)"
+                    }}
+                  >
+                    {loadingMeetingNotes ? <Loader2 className="spin" size={16} /> : <FileText size={16} />}
+                    {loadingMeetingNotes ? "Generating..." : "Generate Meeting Notes"}
+                  </button>
+                )}
               </div>
+
+              {meetingNotes ? (
+                <div className="markdown-output" style={{ whiteSpace: "pre-wrap", lineHeight: "1.8", color: "#e2e8f0", marginTop: "1rem" }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{meetingNotes}</ReactMarkdown>
+                </div>
+              ) : (
+                <div style={{ color: "#94a3b8", padding: "2rem 0", textAlign: "center" }}>
+                  {currentDocumentId
+                    ? "Click 'Generate Meeting Notes' above to extract action items."
+                    : "No Document Selected. Please select a document from the top dropdown or upload a PDF first."}
+                </div>
+              )}
             </div>
           )}
 
-
           {activeView === "researchNotes" && (
-            <div className="analysis-result">
-              <h2>🔬 Research Notes</h2>
-
-              <div
-                style={{
-                  whiteSpace: "pre-wrap",
-                  lineHeight: "1.8",
-                }}
-              >
-                {researchNotes}
+            <div className="card">
+              <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%" }}>
+                <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                  <div className="doc-library-icon-box">
+                    <Brain size={24} />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: "1.25rem", fontWeight: "700", color: "#f8fafc", margin: 0 }}>Research Notes</h2>
+                    <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: "0.25rem 0 0" }}>
+                      Generate comprehensive academic and technical research notes.
+                    </p>
+                  </div>
+                </div>
+                {currentDocumentId && (
+                  <button
+                    onClick={handleResearchNotes}
+                    disabled={loadingResearchNotes}
+                    style={{
+                      background: "linear-gradient(135deg, #a855f7 0%, #6366f1 100%)",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "0.6rem 1.1rem",
+                      fontWeight: "600",
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)"
+                    }}
+                  >
+                    {loadingResearchNotes ? <Loader2 className="spin" size={16} /> : <Brain size={16} />}
+                    {loadingResearchNotes ? "Generating..." : "Generate Research Notes"}
+                  </button>
+                )}
               </div>
+
+              {researchNotes ? (
+                <div className="markdown-output" style={{ whiteSpace: "pre-wrap", lineHeight: "1.8", color: "#e2e8f0", marginTop: "1rem" }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{researchNotes}</ReactMarkdown>
+                </div>
+              ) : (
+                <div style={{ color: "#94a3b8", padding: "2rem 0", textAlign: "center" }}>
+                  {currentDocumentId
+                    ? "Click 'Generate Research Notes' above to analyze document methodology & findings."
+                    : "No Document Selected. Please select a document from the top dropdown or upload a PDF first."}
+                </div>
+              )}
             </div>
           )}
 
 
           {activeView === "comparison" && (
-  <div className="analysis-result">
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", width: "100%" }}>
+              {/* Top Selection Card */}
+              <div className="card">
+                <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginBottom: "1.25rem" }}>
+                  <div className="doc-library-icon-box">
+                    <FileText size={24} />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: "1.25rem", fontWeight: "700", color: "#f8fafc", margin: 0 }}>Multi-Document Comparison</h2>
+                    <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: "0.25rem 0 0" }}>
+                      Compare two documents side-by-side to highlight similarities, differences, and unique topics.
+                    </p>
+                  </div>
+                </div>
 
-    <h2>📄 Document Comparison</h2>
+                <div style={{ color: "#f8fafc", fontWeight: "600", fontSize: "0.95rem", marginBottom: "0.5rem" }}>
+                  Select Two Documents to Compare:
+                </div>
 
-    <div
-      style={{
-        whiteSpace: "pre-wrap",
-        lineHeight: "1.8",
-      }}
-    >
-      <ReactMarkdown>
-        {comparison}
-      </ReactMarkdown>
-    </div>
+                <div className="compare-docs-container">
+                  {documents.length === 0 ? (
+                    <div style={{ color: "#94a3b8", padding: "1rem 0" }}>Please upload documents first in Library.</div>
+                  ) : (
+                    documents.map((doc) => {
+                      const isSelected = selectedCompareDocs.includes(doc.document_id);
+                      return (
+                        <div
+                          key={doc.document_id}
+                          className={`compare-doc-pill ${isSelected ? "active" : ""}`}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedCompareDocs(selectedCompareDocs.filter((id) => id !== doc.document_id));
+                            } else {
+                              if (selectedCompareDocs.length < 2) {
+                                setSelectedCompareDocs([...selectedCompareDocs, doc.document_id]);
+                              } else {
+                                alert("Please select exactly 2 documents to compare.");
+                              }
+                            }
+                          }}
+                        >
+                          <FileText size={16} />
+                          <span>{doc.filename}</span>
+                          {isSelected && <CheckCircle size={16} color="#818cf8" />}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
 
-  </div>
-)}
+                <button
+                  className="compare-run-btn"
+                  onClick={handleCompareDocuments}
+                  disabled={loadingComparison || selectedCompareDocs.length !== 2}
+                >
+                  {loadingComparison ? (
+                    <>
+                      <Loader2 className="spin" size={18} /> Generating Comparison...
+                    </>
+                  ) : (
+                    <>
+                      <span>⇄</span> Run Side-by-Side Comparison
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Bottom Report Card */}
+              {(comparison || loadingComparison) && (
+                <div className="card">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+                    <span className="comparison-report-badge">
+                      Comparison Report
+                    </span>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button
+                        style={{
+                          background: "rgba(255,255,255,0.08)",
+                          color: "#94a3b8",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          borderRadius: "8px",
+                          padding: "0.4rem 0.8rem",
+                          fontSize: "0.8rem",
+                          fontWeight: "600",
+                          cursor: "pointer"
+                        }}
+                        onClick={() => {
+                          navigator.clipboard.writeText(comparison);
+                          showToast("Copied comparison to clipboard", "success");
+                        }}
+                      >
+                        Copy
+                      </button>
+                      <button
+                        style={{
+                          background: "rgba(255,255,255,0.08)",
+                          color: "#94a3b8",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          borderRadius: "8px",
+                          padding: "0.4rem 0.8rem",
+                          fontSize: "0.8rem",
+                          fontWeight: "600",
+                          cursor: "pointer"
+                        }}
+                        onClick={exportPDF}
+                      >
+                        PDF
+                      </button>
+                    </div>
+                  </div>
+
+                  <h3 style={{ fontSize: "1.1rem", fontWeight: "700", color: "#f8fafc", display: "flex", alignItems: "center", gap: "0.5rem", margin: "0 0 1rem" }}>
+                    <FileText size={18} /> Overall Summary
+                  </h3>
+
+                  <div
+                    className="markdown-output"
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      lineHeight: "1.8",
+                      color: "#e2e8f0"
+                    }}
+                  >
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {comparison}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
 
           {/* ================= AI Chat ================= */}
@@ -1850,9 +2038,22 @@ const handleCompareDocuments = async () => {
               question={question}
               setQuestion={setQuestion}
               askQuestion={askQuestion}
+              currentDocumentId={currentDocumentId}
+              documents={documents}
             />
           )}
-        </div>   {/* Content Container */}
+        </main>   {/* Workspace Container */}
+
+        <RightPanel
+          currentDocumentId={currentDocumentId}
+          documents={documents}
+          onDownloadDocument={(id) => {
+            window.open(`http://localhost:8000/document/${id}/download`, "_blank");
+          }}
+          onExportPDF={exportPDF}
+          onExportDOCX={exportDOCX}
+          summary={summary}
+        />
 
       </div>     {/* Grid Container */}
 
@@ -1889,7 +2090,7 @@ const handleCompareDocuments = async () => {
         </div>
       )}
 
-    </section>
+    </div>
   );
 }
 

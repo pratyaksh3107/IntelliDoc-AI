@@ -1,0 +1,46 @@
+/* SemanticSearchView.css */
+.ss-container { display: flex; flex-direction: column; gap: 1.25rem; }
+.ss-header { display: flex; flex-direction: column; gap: 0.25rem; }
+.ss-title { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; }
+.ss-sub   { font-size: 0.875rem; color: var(--text-muted); }
+
+.ss-mode-toggle { display: flex; gap: 0.375rem; }
+.ss-mode-btn {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem; font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all var(--ease-fast);
+}
+.ss-mode-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.08); }
+.ss-mode-btn.active { background: rgba(139,92,246,0.15); color: var(--purple-light); border-color: rgba(139,92,246,0.3); }
+
+.ss-search-bar {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-xl);
+}
+.ss-search-icon { color: var(--text-muted); flex-shrink: 0; }
+.ss-search-input {
+  flex: 1; border: none; background: transparent;
+  color: var(--text-primary); font-size: 0.9rem; outline: none;
+}
+.ss-search-input::placeholder { color: var(--text-muted); }
+
+.ss-loading { display: flex; align-items: center; gap: 0.65rem; padding: 1.5rem 0; color: var(--text-muted); font-size: 0.875rem; }
+
+.ss-results { display: flex; flex-direction: column; gap: 0.75rem; }
+.ss-results-header { font-size: 0.82rem; color: var(--text-muted); }
+.ss-results-list { display: flex; flex-direction: column; gap: 0.625rem; }
+
+.ss-result-card { padding: 1rem 1.1rem; border-radius: var(--radius-xl); display: flex; flex-direction: column; gap: 0.5rem; }
+.ss-result-header { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.ss-result-rank { font-size: 0.7rem; font-weight: 700; color: var(--text-faint); background: rgba(255,255,255,0.06); padding: 0.15rem 0.4rem; border-radius: var(--radius-xs); }
+.ss-result-meta { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+.ss-result-page { color: var(--text-muted); font-weight: 400; font-size: 0.75rem; }
+.ss-result-text { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; }
+.ss-result-chunk { font-size: 0.68rem; color: var(--text-faint); }

@@ -1,0 +1,91 @@
+/* UploadView.css */
+.uv-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 700px;
+  margin: 0 auto;
+}
+.uv-header { display: flex; flex-direction: column; gap: 0.3rem; }
+.uv-title { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; }
+.uv-sub   { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5; }
+
+.uv-dropzone {
+  border-radius: var(--radius-2xl);
+  border: 2px dashed var(--border-subtle);
+  padding: 2.5rem;
+  cursor: pointer;
+  transition: all var(--ease-normal);
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.uv-dropzone:hover { border-color: var(--border-accent); background: rgba(139,92,246,0.04); }
+.uv-dropzone.drag-over { border-color: var(--purple); background: rgba(139,92,246,0.08); box-shadow: var(--shadow-glow); }
+.uv-dropzone.has-files { cursor: default; }
+
+.uv-drop-idle { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; text-align: center; }
+.uv-drop-icon {
+  width: 64px; height: 64px;
+  border-radius: var(--radius-xl);
+  background: rgba(139,92,246,0.12);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--purple);
+}
+.uv-drop-idle h3  { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+.uv-drop-idle p   { font-size: 0.875rem; color: var(--text-muted); }
+.uv-link { color: var(--purple-light); cursor: pointer; text-decoration: underline; }
+.uv-accepted-types { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center; }
+
+.uv-file-list { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; }
+.uv-file-item {
+  display: flex; align-items: center; gap: 0.65rem;
+  padding: 0.625rem 0.875rem;
+  background: rgba(139,92,246,0.06);
+  border: 1px solid rgba(139,92,246,0.15);
+  border-radius: var(--radius-lg);
+  font-size: 0.85rem;
+}
+.uv-file-name { flex: 1; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uv-file-size { font-size: 0.75rem; color: var(--text-muted); flex-shrink: 0; }
+.uv-add-more { font-size: 0.8rem; color: var(--purple-light); text-decoration: underline; cursor: pointer; padding: 0.25rem 0; background: none; }
+
+.uv-upload-btn { width: 100%; justify-content: center; padding: 0.75rem; font-size: 0.9rem; border-radius: var(--radius-lg); }
+
+.uv-progress {
+  display: flex; align-items: flex-start; gap: 0.875rem;
+  padding: 1.25rem 1.25rem;
+  border-radius: var(--radius-xl);
+  position: relative;
+  overflow: hidden;
+}
+.uv-progress-text { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; }
+.uv-progress-text > span:first-child { font-weight: 600; color: var(--text-primary); font-size: 0.9rem; }
+.uv-progress-bar {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+  background: rgba(139,92,246,0.15);
+}
+.uv-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--purple), var(--indigo));
+  width: 70%;
+  border-radius: 99px;
+}
+
+.uv-results { display: flex; flex-direction: column; gap: 0.875rem; }
+.uv-results-header { display: flex; align-items: center; gap: 0.5rem; }
+.uv-results-header h3 { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.uv-results-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.uv-result-item { display: flex; align-items: center; gap: 0.65rem; padding: 0.75rem 1rem; border-radius: var(--radius-lg); }
+.uv-result-info { flex: 1; display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.uv-result-name { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uv-result-meta { font-size: 0.72rem; color: var(--text-muted); }
+.uv-results-actions { display: flex; gap: 0.625rem; flex-wrap: wrap; }
+
+.uv-tips {
+  display: flex; align-items: flex-start; gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-xl);
+  font-size: 0.825rem;
+}
