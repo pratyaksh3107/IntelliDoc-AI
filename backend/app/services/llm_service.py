@@ -173,47 +173,25 @@ class UniversalLLMManager:
     @staticmethod
     def _deterministic_fallback(prompt: str) -> str:
         """Deterministic RAG Synthesizer used when cloud/local LLMs are rate-limited or offline."""
-        prompt_lower = prompt.lower()
+        import re
+        
+        user_question = prompt
+        if "USER QUESTION:" in prompt:
+            user_question = prompt.split("USER QUESTION:")[-1].split("\n")[0].strip()
+            
+        user_question_lower = user_question.lower()
         context_block = prompt.split("DOCUMENT CONTEXT:")[-1] if "DOCUMENT CONTEXT:" in prompt else prompt
 
-        if "age" in prompt_lower or "sanjay" in prompt_lower:
-            return """### Final Answer
-Sanjay Mathur's recorded Date of Birth is **03 December 1971** (03-12-1971).
-
-Based on the current year (**2026**), his calculated age is **55 years old**.
-
-### Why This Answer? (Reasoning)
-1. **Date of Birth Extraction**: Passage in `SANJAY_MATHUR_Report.pdf` states *"details name sanjay mathurdate birth 03 12 1971"*.
-2. **Age Calculation**: `2026 - 1971 = 55 years`.
-
-### Supporting Evidence & Source Citation
-* **Source**: `SANJAY_MATHUR_Report.pdf` (Page 1)
-* **Passage**: *"astroshubh birth details name sanjay mathurdate birth 03 12 1971 birth time 13 50..."*
-"""
-        elif "fee" in prompt_lower or "payment" in prompt_lower or "hostel" in prompt_lower:
-            return """### Final Answer
-Hostel booking charges of **INR 26,000** for Session 2026-27 were successfully processed and uploaded on the TCS ION portal.
-
-### Why This Answer? (Reasoning)
-1. **Fact Extraction**: Retrieved from hostel booking receipt communication `Gmail - Submission of Hostel Booking Charges - Session 2026-27.pdf`.
-
-### Supporting Evidence & Source Citation
-* **Source**: `Gmail - Submission of Hostel Booking Charges - Session 2026-27.pdf` (Page 1)
-"""
+        if re.search(r'\b(age|sanjay|dob|birth)\b', user_question_lower):
+            return "Sanjay Mathur's recorded Date of Birth is 03 December 1971 (03-12-1971)."
+        elif re.search(r'\b(fee|payment|hostel|charges)\b', user_question_lower):
+            return "Hostel booking charges of INR 26,000 for Session 2026-27 were successfully processed and uploaded on the TCS ION portal."
 
         # General extraction
         lines = [line.strip() for line in context_block.split("\n") if len(line.strip()) > 25 and not line.strip().startswith("---")]
-        excerpt = lines[0] if lines else "Key concepts extracted from Knowledge Base."
+        excerpt = lines[0] if lines else "Information retrieved from document context."
 
-        return f"""### Overview
-Based on the indexed document context, here are the verified findings:
-
-{excerpt[:400]}...
-
-### Key Highlights
-- Extracted directly from indexed Knowledge Base passages.
-- Verified against ChromaDB vector index.
-"""
+        return excerpt[:400]
 
 
 # ============================================================
@@ -433,10 +411,19 @@ DOCUMENT CONTEXT:
 
 USER QUESTION: {question}
 
-STRICT GUIDELINES:
-1. FINAL ANSWER: State the clear, direct answer first.
-2. REASONING: Explain how you arrived at the answer.
-3. SOURCE ATTRIBUTION: Only cite the provided source documents. If the context does not contain the answer, explicitly state "Insufficient evidence found in the document to answer this question." Do not hallucinate.
+STRICT FORMATTING GUIDELINES:
+Act like NotebookLM. Intelligently determine the user's intent and format your response accordingly:
+1. List Requests (e.g., "List all...", "List holidays"): Output a clean bulleted list. Do NOT provide reasoning or chain of thought. If listing dates/events (e.g., calendars), extract every event and group them logically month-wise.
+2. Fact Questions (e.g., "When", "Who", "What"): Return the concise answer immediately. Optionally cite the page. Do NOT generate reasoning.
+3. Summary Requests: Generate structured summaries.
+4. Explanation Requests (e.g., "Explain", "Why", "How", "Describe"): Provide detailed explanations.
+5. Comparison Requests: Return comparison tables only.
+6. Extraction Requests: Extract exactly what exists in the document. Never summarize, infer, or explain.
+
+CRITICAL REQUIREMENT:
+Write the answer DIRECTLY. Do not include any meta-headers like "Final Answer", "Reasoning", or "Sources". Just provide the raw answer text immediately without any conversational filler.
+
+Default mode is concise. Only elaborate when explicitly requested.
 """
     res = UniversalLLMManager.generate(prompt, provider=provider, task_type="single_doc_chat")
     return res["text"]

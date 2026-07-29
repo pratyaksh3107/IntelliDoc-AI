@@ -1,7 +1,12 @@
 import chromadb
 import uuid
+import os
 
-client = chromadb.PersistentClient(path="vector_db")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # backend/app
+BACKEND_DIR = os.path.dirname(BASE_DIR) # backend
+DB_PATH = os.path.join(BACKEND_DIR, "vector_db")
+
+client = chromadb.PersistentClient(path=DB_PATH)
 
 collection = client.get_or_create_collection(
     name="intellidoc_documents"

@@ -22,8 +22,8 @@ def is_quality_chunk(chunk_text: str) -> bool:
     alpha_chars = sum(1 for c in clean_str if c.isalpha())
     total_chars = len(clean_str)
 
-    # Reject if alphabetic ratio is below 55% to allow financial tables / dates
-    if (alpha_chars / max(1, total_chars)) < 0.55:
+    # Reject if alphabetic ratio is below 30% to allow financial tables / dates / calendars
+    if (alpha_chars / max(1, total_chars)) < 0.30:
         return False
 
     # Reject if chunk consists mostly of repetitive noise symbols

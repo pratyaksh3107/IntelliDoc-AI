@@ -27,21 +27,11 @@ def extract_pdf_text(pdf_bytes):
         if text and text.strip():
             extracted_text += text + "\n"
 
-    # Normal PDF text found
-    if extracted_text.strip():
-
-        extracted_text = extracted_text.encode(
-            "utf-8",
-            errors="ignore"
-        ).decode("utf-8")
-
-        return extracted_text, len(pdf_reader.pages)
-
     # ==========================
-    # OCR Fallback
+    # Full Page OCR (for embedded images/tables)
     # ==========================
 
-    print("No selectable text found. Using OCR...")
+    print("Running OCR to capture embedded images/tables...")
 
     doc = fitz.open(
         stream=pdf_bytes,
@@ -69,7 +59,8 @@ def extract_pdf_text(pdf_bytes):
         errors="ignore"
     ).decode("utf-8")
 
-    return ocr_text, len(doc)
+    final_text = extracted_text + "\n\n" + ocr_text
+    return final_text, len(doc)
 
 
 def extract_image_text(image_bytes):

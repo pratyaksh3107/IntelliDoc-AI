@@ -120,7 +120,7 @@ def compress_context(selected_chunks: list) -> str:
         raw_text = item["text"]
         
         # Split by sentences or newlines
-        sentences = [s.strip() for s in re.split(r'(?<=[.!?]) +|\n', raw_text) if len(s.strip()) > 10]
+        sentences = [s.strip() for s in re.split(r'(?<=[.!?]) +|\n', raw_text) if len(s.strip()) > 3]
         unique_sentences = []
         for s in sentences:
             if s not in seen_sentences:
@@ -128,7 +128,7 @@ def compress_context(selected_chunks: list) -> str:
                 seen_sentences.add(s)
         
         if unique_sentences:
-            compressed_text = " ".join(unique_sentences)
+            compressed_text = "\n".join(unique_sentences)
             compressed_text_parts.append(f"--- SOURCE DOCUMENT: {filename} (Page {page}) ---\n{compressed_text}")
             
     return "\n\n".join(compressed_text_parts)
@@ -317,10 +317,19 @@ RETRIEVED DOCUMENT CONTEXT:
 {context}
 ============================================================
 
-STRICT GUIDELINES:
-1. FINAL ANSWER: State the clear, direct answer first.
-2. REASONING: Explain how you arrived at the answer.
-3. SOURCE ATTRIBUTION: Only cite the provided source documents. Never invent details.
+STRICT FORMATTING GUIDELINES:
+Act like NotebookLM. Intelligently determine the user's intent and format your response accordingly:
+1. List Requests (e.g., "List all...", "List holidays"): Output a clean bulleted list. Do NOT provide reasoning or chain of thought. If listing dates/events (e.g., calendars), extract every event and group them logically month-wise.
+2. Fact Questions (e.g., "When", "Who", "What"): Return the concise answer immediately. Optionally cite the page. Do NOT generate reasoning.
+3. Summary Requests: Generate structured summaries.
+4. Explanation Requests (e.g., "Explain", "Why", "How", "Describe"): Provide detailed explanations.
+5. Comparison Requests: Return comparison tables only.
+6. Extraction Requests: Extract exactly what exists in the document. Never summarize, infer, or explain.
+
+CRITICAL REQUIREMENT:
+Write the answer DIRECTLY. Do not include any meta-headers like "Final Answer", "Reasoning", or "Sources". Just provide the raw answer text immediately without any conversational filler.
+
+Default mode is concise. Only elaborate when explicitly requested.
 """
         answer = generate_global_answer(deduction_prompt, data.provider or "ollama")
 

@@ -1,10 +1,14 @@
-from fastapi import APIRouter, UploadFile, File
+﻿from fastapi import APIRouter, UploadFile, File
 from typing import List
 import os
 import uuid
 from datetime import datetime
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BACKEND_DIR = os.path.dirname(BASE_DIR)
+UPLOADS_DIR = os.path.join(BACKEND_DIR, "uploads")
 
 from app.services.pdf_service import (
     extract_pdf_text,
@@ -34,10 +38,10 @@ async def upload_file(files: List[UploadFile] = File(...)):
 
         file_bytes = await file.read()
 
-        os.makedirs("uploads", exist_ok=True)
+        os.makedirs(UPLOADS_DIR, exist_ok=True)
 
         file_path = os.path.join(
-            "uploads",
+            UPLOADS_DIR,
             file.filename
         )
 
@@ -182,7 +186,7 @@ async def delete_uploaded_document(document_id: str):
             detail="Document not found"
         )
 
-    file_path = os.path.join("uploads", filename)
+    file_path = os.path.join(UPLOADS_DIR, filename)
 
     if os.path.exists(file_path):
         os.remove(file_path)
@@ -210,7 +214,7 @@ async def download_document(document_id: str):
         )
 
     file_path = os.path.join(
-        "uploads",
+        UPLOADS_DIR,
         target["filename"]
     )
 

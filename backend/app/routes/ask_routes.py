@@ -92,9 +92,18 @@ async def ask_ai(data: QuestionRequest):
 
         answer = generate_answer(context, data.question, data.provider or "ollama")
 
+        sources_list = []
+        for s in selected:
+            sources_list.append({
+                "filename": s["filename"],
+                "page": s["page"],
+                "similarity_score": int(s["hybrid_score"] * 100)
+            })
+
         return {
             "question": data.question,
-            "answer": answer
+            "answer": answer,
+            "sources": sources_list
         }
 
     except Exception as e:
