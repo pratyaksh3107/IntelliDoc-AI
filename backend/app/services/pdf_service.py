@@ -1,14 +1,16 @@
 from pypdf import PdfReader
 import io
+import os
 
 import fitz
 import pytesseract
 from PIL import Image
 
-# Windows Tesseract Path
-pytesseract.pytesseract.tesseract_cmd = (
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-)
+# Configure Tesseract only on Windows
+if os.name == "nt":
+    tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    if os.path.exists(tesseract_path):
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
 
 def extract_pdf_text(pdf_bytes):
@@ -28,7 +30,7 @@ def extract_pdf_text(pdf_bytes):
             extracted_text += text + "\n"
 
     # ==========================
-    # Full Page OCR (for embedded images/tables)
+    # OCR for embedded images / scanned PDFs
     # ==========================
 
     print("Running OCR to capture embedded images/tables...")
@@ -54,13 +56,16 @@ def extract_pdf_text(pdf_bytes):
 
         ocr_text += text + "\n"
 
+    doc.close()
+
     ocr_text = ocr_text.encode(
         "utf-8",
         errors="ignore"
     ).decode("utf-8")
 
     final_text = extracted_text + "\n\n" + ocr_text
-    return final_text, len(doc)
+
+    return final_text, len(pdf_reader.pages)
 
 
 def extract_image_text(image_bytes):
