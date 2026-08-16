@@ -1,0 +1,17 @@
+venv/
+temp_venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+.git/
+.gitignore
+
+.env
+
+uploads/
+generated_reports/
+
+*.log
+.DS_Store
