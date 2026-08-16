@@ -121,15 +121,16 @@ async def upload_file(files: List[UploadFile] = File(...)):
         # Remove Existing Document
         # ==========================
 
-        existing_documents = get_all_documents()
-
-        for doc in existing_documents:
-
-            if doc["filename"] == file.filename:
-
-                delete_document(doc["document_id"])
-
-                break
+        try:
+            existing_documents = get_all_documents()
+            for doc in existing_documents:
+                if doc.get("filename") == file.filename:
+                    doc_id = doc.get("document_id")
+                    if doc_id:
+                        delete_document(doc_id)
+                    break
+        except Exception as err:
+            print("Warning: Failed to clear existing document entry:", err)
 
         # ==========================
         # Metadata

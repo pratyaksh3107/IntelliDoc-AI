@@ -111,17 +111,20 @@ def get_all_documents():
         if metadata is None:
             continue
 
-        if "document_id" not in metadata:
+        doc_id = metadata.get("document_id")
+        if not doc_id:
             continue
 
-        doc_id = metadata["document_id"]
+        filename = metadata.get("filename", "Unknown Document")
+        file_type = metadata.get("file_type", "pdf")
+        upload_date = metadata.get("upload_date", "")
 
         if doc_id not in documents:
             documents[doc_id] = {
                 "document_id": doc_id,
-                "filename": metadata["filename"],
-                "file_type": metadata["file_type"],
-                "upload_date": metadata["upload_date"],
+                "filename": filename,
+                "file_type": file_type,
+                "upload_date": upload_date,
                 "chunks": 1,
             }
         else:
