@@ -29,37 +29,38 @@ def extract_pdf_text(pdf_bytes):
             extracted_text += text + "\n"
 
     # ==========================
-    # Full Page OCR (for embedded images/tables)
+    # Full Page OCR (fallback for scanned PDFs)
     # ==========================
-    print("Running OCR to capture embedded images/tables...")
-    ocr_text = ""
     total_pages = len(pdf_reader.pages) or 1
+    ocr_text = ""
 
-    try:
-        doc = fitz.open(
-            stream=pdf_bytes,
-            filetype="pdf"
-        )
-        total_pages = len(doc)
-
-        for page in doc:
-            pix = page.get_pixmap(dpi=300)
-            img = Image.frombytes(
-                "RGB",
-                [pix.width, pix.height],
-                pix.samples
+    if not extracted_text or len(extracted_text.strip()) < 50:
+        print("Running OCR fallback for scanned document...")
+        try:
+            doc = fitz.open(
+                stream=pdf_bytes,
+                filetype="pdf"
             )
-            text = pytesseract.image_to_string(img)
-            ocr_text += text + "\n"
+            total_pages = len(doc)
 
-        ocr_text = ocr_text.encode(
-            "utf-8",
-            errors="ignore"
-        ).decode("utf-8")
-    except Exception as err:
-        print("OCR processing warning:", err)
+            for page in doc:
+                pix = page.get_pixmap(dpi=150)
+                img = Image.frombytes(
+                    "RGB",
+                    [pix.width, pix.height],
+                    pix.samples
+                )
+                text = pytesseract.image_to_string(img)
+                ocr_text += text + "\n"
 
-    final_text = extracted_text + "\n\n" + ocr_text
+            ocr_text = ocr_text.encode(
+                "utf-8",
+                errors="ignore"
+            ).decode("utf-8")
+        except Exception as err:
+            print("OCR processing warning:", err)
+
+    final_text = (extracted_text + "\n\n" + ocr_text).strip()
     return final_text, total_pages
 
 
