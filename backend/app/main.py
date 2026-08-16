@@ -14,7 +14,6 @@ from app.routes.meeting_notes_routes import router as meeting_notes_router
 from app.routes.research_notes_routes import router as research_notes_router
 from app.routes.export_routes import router as export_router
 from app.routes.compare_routes import router as compare_router
-from app.routes.global_ai_routes import router as global_ai_router
 
 
 app = FastAPI(
@@ -23,11 +22,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
+app.include_router(study_notes_router)
+
 # ===========================
 # Register Routes
 # ===========================
 
-app.include_router(study_notes_router)
 app.include_router(upload_router)
 app.include_router(search_router)
 app.include_router(document_router)
@@ -40,7 +40,6 @@ app.include_router(meeting_notes_router)
 app.include_router(research_notes_router)
 app.include_router(export_router)
 app.include_router(compare_router)
-app.include_router(global_ai_router)
 
 # ===========================
 # CORS
@@ -48,7 +47,10 @@ app.include_router(global_ai_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+    "http://localhost:5173",
+    "https://intelli-doc-ai-chih5.vercel.app"
+],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
