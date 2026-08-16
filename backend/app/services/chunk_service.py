@@ -81,7 +81,10 @@ def create_chunks(text: str, max_chunk_size: int = 1500) -> list:
                     raw_chunks.append(current_chunk.strip())
                     current_chunk = ""
                     
-                sentences = sent_tokenize(para)
+                try:
+                    sentences = sent_tokenize(para)
+                except Exception:
+                    sentences = re.split(r'(?<=[.!?])\s+', para)
                 for sentence in sentences:
                     if len(current_chunk) + len(sentence) + 1 <= max_chunk_size:
                         current_chunk = (current_chunk + " " + sentence).strip()
