@@ -106,7 +106,11 @@ def upload_file(files: List[UploadFile] = File(...)):
             if extracted_text and extracted_text.strip():
                 clean_chunks = [extracted_text.strip()[:1000]]
             else:
-                clean_chunks = [f"Document {file.filename} uploaded."]
+                clean_chunks = [
+                    f"Document Name: {file.filename}\n"
+                    f"File Type: {file_type.upper()} Media Document\n"
+                    f"Overview: This document '{file.filename}' is an image / scanned media document indexed into your Knowledge Base. It contains visual graphic content and document media uploaded into IntelliDoc AI."
+                ]
 
         print("Raw Chunks:", len(chunks))
         print("Clean Chunks:", len(clean_chunks))
