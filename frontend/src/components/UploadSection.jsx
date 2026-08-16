@@ -116,7 +116,7 @@ function UploadSection() {
   const fetchDocuments = async () => {
     try {
       const response = await fetch(
-        "http://localhost:8000/documents"
+        "https://intellidoc-backend-ctzp.onrender.com/documents"
       );
 
       const data = await response.json();
@@ -148,7 +148,7 @@ function UploadSection() {
       onConfirm: async () => {
         setConfirmModal(null);
         try {
-          const response = await fetch(`http://localhost:8000/document/${documentId}`, {
+          const response = await fetch(`https://intellidoc-backend-ctzp.onrender.com/document/${documentId}`, {
             method: "DELETE",
           });
 
@@ -174,7 +174,7 @@ function UploadSection() {
   };
 
   const handleDownloadDocument = (documentId) => {
-    window.open(`http://localhost:8000/download/${documentId}`, "_blank");
+    window.open(`https://intellidoc-backend-ctzp.onrender.com/download/${documentId}`, "_blank");
     showToast("Starting document download...", "info");
   };
 
@@ -232,7 +232,7 @@ function UploadSection() {
     });
 
     try {
-      const response = await fetch("http://localhost:8000/upload", {
+      const response = await fetch("https://intellidoc-backend-ctzp.onrender.com/upload", {
         method: "POST",
         body: formData,
       });
@@ -278,7 +278,7 @@ function UploadSection() {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/semantic-search?query=${encodeURIComponent(
+        `https://intellidoc-backend-ctzp.onrender.com/semantic-search?query=${encodeURIComponent(
           searchQuery
         )}`
       );
@@ -318,7 +318,7 @@ function UploadSection() {
     try {
 
       const response = await fetch(
-        "http://localhost:8000/ask",
+        "https://intellidoc-backend-ctzp.onrender.com/ask",
         {
           method: "POST",
           headers: {
@@ -373,7 +373,7 @@ function UploadSection() {
 
     try {
       const response = await fetch(
-        "http://localhost:8000/summary",
+        "https://intellidoc-backend-ctzp.onrender.com/summary",
         {
           method: "POST",
           headers: {
@@ -413,7 +413,7 @@ function UploadSection() {
     try {
 
       const response = await fetch(
-        "http://localhost:8000/study-notes",
+        "https://intellidoc-backend-ctzp.onrender.com/study-notes",
         {
           method: "POST",
           headers: {
@@ -511,7 +511,7 @@ function UploadSection() {
     try {
 
       const response = await fetch(
-        "http://localhost:8000/flashcards",
+        "https://intellidoc-backend-ctzp.onrender.com/flashcards",
         {
           method: "POST",
           headers: {
@@ -570,7 +570,7 @@ function UploadSection() {
     try {
 
       const response = await fetch(
-        "http://localhost:8000/question-bank",
+        "https://intellidoc-backend-ctzp.onrender.com/question-bank",
         {
           method: "POST",
           headers: {
@@ -618,7 +618,7 @@ function UploadSection() {
     try {
 
       const response = await fetch(
-        "http://localhost:8000/faq",
+        "https://intellidoc-backend-ctzp.onrender.com/faq",
         {
           method: "POST",
           headers: {
@@ -667,7 +667,7 @@ function UploadSection() {
     try {
 
       const response = await fetch(
-        "http://localhost:8000/meeting-notes",
+        "https://intellidoc-backend-ctzp.onrender.com/meeting-notes",
         {
           method: "POST",
           headers: {
@@ -715,7 +715,7 @@ function UploadSection() {
     try {
 
       const response = await fetch(
-        "http://localhost:8000/research-notes",
+        "https://intellidoc-backend-ctzp.onrender.com/research-notes",
         {
           method: "POST",
           headers: {
@@ -761,7 +761,7 @@ function UploadSection() {
 
     try {
       const response = await fetch(
-        "http://localhost:8000/compare",
+        "https://intellidoc-backend-ctzp.onrender.com/compare",
         {
           method: "POST",
           headers: {
@@ -796,7 +796,7 @@ function UploadSection() {
     }
 
     const response = await fetch(
-      "http://localhost:8000/export/pdf",
+      "https://intellidoc-backend-ctzp.onrender.com/export/pdf",
       {
         method: "POST",
         headers: {
@@ -832,7 +832,7 @@ function UploadSection() {
     }
 
     const response = await fetch(
-      "http://localhost:8000/export/docx",
+      "https://intellidoc-backend-ctzp.onrender.com/export/docx",
       {
         method: "POST",
         headers: {
@@ -1066,7 +1066,7 @@ function UploadSection() {
                               title="Download PDF"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                window.open(`http://localhost:8000/document/${doc.document_id}/download`, "_blank");
+                                window.open(`https://intellidoc-backend-ctzp.onrender.com/document/${doc.document_id}/download`, "_blank");
                               }}
                             >
                               ↓
@@ -2048,7 +2048,7 @@ function UploadSection() {
           currentDocumentId={currentDocumentId}
           documents={documents}
           onDownloadDocument={(id) => {
-            window.open(`http://localhost:8000/document/${id}/download`, "_blank");
+            window.open(`https://intellidoc-backend-ctzp.onrender.com/document/${id}/download`, "_blank");
           }}
           onExportPDF={exportPDF}
           onExportDOCX={exportDOCX}
