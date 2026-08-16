@@ -167,13 +167,15 @@ def upload_file(files: List[UploadFile] = File(...)):
         global stored_chunks
         stored_chunks = clean_chunks
 
+        preview_text = extracted_text[:500] if extracted_text else f"Uploaded {file.filename}"
+
         results.append(
             {
                 "filename": file.filename,
                 "document_id": document_id,
                 "pages": total_pages,
                 "chunks": len(clean_chunks),
-                "preview": extracted_text[:500],
+                "preview": preview_text,
             }
         )
 
