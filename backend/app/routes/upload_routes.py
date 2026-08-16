@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File
 from typing import List
 import os
 import uuid
@@ -101,6 +101,12 @@ async def upload_file(files: List[UploadFile] = File(...)):
 
             if chunk:
                 clean_chunks.append(chunk)
+
+        if not clean_chunks:
+            if extracted_text and extracted_text.strip():
+                clean_chunks = [extracted_text.strip()[:1000]]
+            else:
+                clean_chunks = [f"Document {file.filename} uploaded."]
 
         print("Raw Chunks:", len(chunks))
         print("Clean Chunks:", len(clean_chunks))
