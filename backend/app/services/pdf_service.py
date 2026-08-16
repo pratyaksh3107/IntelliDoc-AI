@@ -73,9 +73,9 @@ def extract_image_text(image_bytes):
     """
     Extract text directly from PNG/JPG/JPEG images using OCR.
     """
-    image = Image.open(io.BytesIO(image_bytes))
     text = ""
     try:
+        image = Image.open(io.BytesIO(image_bytes))
         text = pytesseract.image_to_string(image, timeout=5)
         text = text.encode(
             "utf-8",
