@@ -33,9 +33,9 @@ def extract_pdf_text(pdf_bytes):
     except Exception as e:
         print("PyPDF extraction warning:", e)
 
-    # 2. PyMuPDF + Tesseract OCR fallback (for scanned or image PDFs)
+    # 2. PyMuPDF + Tesseract OCR fallback (for scanned or image PDFs on Windows)
     ocr_text = ""
-    if not extracted_text or len(extracted_text.strip()) < 50:
+    if (not extracted_text or len(extracted_text.strip()) < 50) and sys.platform == "win32":
         print("Running OCR fallback for scanned document...")
         try:
             doc = fitz.open(
@@ -45,14 +45,14 @@ def extract_pdf_text(pdf_bytes):
             total_pages = len(doc) or total_pages
 
             for page in doc:
-                pix = page.get_pixmap(dpi=150)
+                pix = page.get_pixmap(dpi=100)
                 img = Image.frombytes(
                     "RGB",
                     [pix.width, pix.height],
                     pix.samples
                 )
                 try:
-                    text = pytesseract.image_to_string(img, timeout=5)
+                    text = pytesseract.image_to_string(img, timeout=2)
                     if text:
                         ocr_text += text + "\n"
                 except Exception as page_ocr_err:
