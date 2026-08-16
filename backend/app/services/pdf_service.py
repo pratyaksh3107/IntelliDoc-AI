@@ -19,21 +19,22 @@ def extract_pdf_text(pdf_bytes):
     Extract text from a PDF.
     If no selectable text exists, OCR is used automatically.
     """
-    pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
-
     extracted_text = ""
+    total_pages = 1
 
-    for page in pdf_reader.pages:
-        text = page.extract_text()
-        if text and text.strip():
-            extracted_text += text + "\n"
+    # 1. Direct PyPDF text extraction
+    try:
+        pdf_reader = PdfReader(io.BytesIO(pdf_bytes))
+        total_pages = len(pdf_reader.pages) or 1
+        for page in pdf_reader.pages:
+            text = page.extract_text()
+            if text and text.strip():
+                extracted_text += text + "\n"
+    except Exception as e:
+        print("PyPDF extraction warning:", e)
 
-    # ==========================
-    # Full Page OCR (fallback for scanned PDFs)
-    # ==========================
-    total_pages = len(pdf_reader.pages) or 1
+    # 2. PyMuPDF + Tesseract OCR fallback (for scanned or image PDFs)
     ocr_text = ""
-
     if not extracted_text or len(extracted_text.strip()) < 50:
         print("Running OCR fallback for scanned document...")
         try:
@@ -41,7 +42,7 @@ def extract_pdf_text(pdf_bytes):
                 stream=pdf_bytes,
                 filetype="pdf"
             )
-            total_pages = len(doc)
+            total_pages = len(doc) or total_pages
 
             for page in doc:
                 pix = page.get_pixmap(dpi=150)
@@ -51,7 +52,8 @@ def extract_pdf_text(pdf_bytes):
                     pix.samples
                 )
                 text = pytesseract.image_to_string(img)
-                ocr_text += text + "\n"
+                if text:
+                    ocr_text += text + "\n"
 
             ocr_text = ocr_text.encode(
                 "utf-8",
