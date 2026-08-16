@@ -51,9 +51,12 @@ def extract_pdf_text(pdf_bytes):
                     [pix.width, pix.height],
                     pix.samples
                 )
-                text = pytesseract.image_to_string(img)
-                if text:
-                    ocr_text += text + "\n"
+                try:
+                    text = pytesseract.image_to_string(img, timeout=5)
+                    if text:
+                        ocr_text += text + "\n"
+                except Exception as page_ocr_err:
+                    print("Page OCR timeout/warning:", page_ocr_err)
 
             ocr_text = ocr_text.encode(
                 "utf-8",
@@ -73,7 +76,7 @@ def extract_image_text(image_bytes):
     image = Image.open(io.BytesIO(image_bytes))
     text = ""
     try:
-        text = pytesseract.image_to_string(image)
+        text = pytesseract.image_to_string(image, timeout=5)
         text = text.encode(
             "utf-8",
             errors="ignore"

@@ -30,13 +30,13 @@ stored_chunks = []
 
 
 @router.post("/upload")
-async def upload_file(files: List[UploadFile] = File(...)):
+def upload_file(files: List[UploadFile] = File(...)):
 
     results = []
 
     for file in files:
 
-        file_bytes = await file.read()
+        file_bytes = file.file.read()
 
         os.makedirs(UPLOADS_DIR, exist_ok=True)
 
