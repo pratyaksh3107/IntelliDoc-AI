@@ -48,9 +48,10 @@ app.include_router(compare_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-    "http://localhost:5173",
-    "https://intelli-doc-ai-chih5.vercel.app"
-],
+        "http://localhost:5173",
+        "https://intelli-doc-ai-cih5.vercel.app",
+        "https://intelli-doc-ai-chih5.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

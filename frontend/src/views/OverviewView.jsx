@@ -6,9 +6,8 @@ import {
   Activity, CheckCircle2, Server, HardDrive, Clock, BarChart3,
   ArrowRight, RefreshCw, AlertCircle
 } from "lucide-react";
+import { BASE_URL } from "../api/client";
 import "./OverviewView.css";
-
-const BASE_URL = import.meta.env?.VITE_API_URL || "http://localhost:8000";
 
 function StatCard({ icon: Icon, label, value, sub, color = "purple" }) {
   return (

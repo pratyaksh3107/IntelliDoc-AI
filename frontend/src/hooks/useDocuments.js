@@ -1,7 +1,6 @@
 // useDocuments.js — Central document state management hook
 import { useState, useEffect, useCallback } from "react";
-
-const BASE = import.meta.env?.VITE_API_URL || "http://localhost:8000";
+import { BASE_URL, api } from "../api/client";
 
 export function useDocuments() {
   const [documents, setDocuments]           = useState([]);
@@ -14,8 +13,7 @@ export function useDocuments() {
     setLoading(true);
     setError(null);
     try {
-      const res  = await fetch(`${BASE}/documents`);
-      const data = await res.json();
+      const data = await api.getDocuments();
       setDocuments(data.documents || []);
     } catch (e) {
       setError("Cannot reach backend. Is FastAPI running on port 8000?");
@@ -32,11 +30,7 @@ export function useDocuments() {
 
   // ── Upload ────────────────────────────────────────────────
   const uploadFiles = useCallback(async (files) => {
-    const formData = new FormData();
-    files.forEach((f) => formData.append("files", f));
-
-    const res  = await fetch(`${BASE}/upload`, { method: "POST", body: formData });
-    const data = await res.json();
+    const data = await api.uploadFiles(files);
 
     if (data.documents?.length > 0) {
       const newDocs = data.documents;
@@ -52,8 +46,7 @@ export function useDocuments() {
 
   // ── Delete ────────────────────────────────────────────────
   const deleteDocument = useCallback(async (docId) => {
-    const res = await fetch(`${BASE}/document/${docId}`, { method: "DELETE" });
-    if (!res.ok) throw new Error("Delete failed");
+    await api.deleteDocument(docId);
     setDocuments((prev) => prev.filter((d) => d.document_id !== docId));
     if (selectedDocId === docId) setSelectedDocId(null);
   }, [selectedDocId]);

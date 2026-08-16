@@ -2,13 +2,12 @@ import {
   FileText, Trash2, Download, ChevronRight, Database,
   Cpu, Layers, Zap, CheckCircle2, MessageSquare, Sparkles, BookOpen
 } from "lucide-react";
+import { BASE_URL, api } from "../api/client";
 import "./RightPanel.css";
-
-const BASE = import.meta.env?.VITE_API_URL || "http://localhost:8000";
 
 function RightPanel({ selectedDoc, documents, setSelectedDocId, onDelete, onNavigate, aiProvider = "ollama" }) {
   const handleDownload = (docId) => {
-    window.open(`${BASE}/download/${docId}`, "_blank");
+    window.open(api.getDownloadUrl(docId), "_blank");
   };
 
   const pagesCount = selectedDoc?.pages || Math.ceil((selectedDoc?.chunks || 1) / 2.5);

@@ -10,6 +10,7 @@ import {
   Loader2,
   HelpCircle,
 } from "lucide-react";
+import { BASE_URL, api } from "../api/client";
 import ReactMarkdown from "react-markdown";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
@@ -115,13 +116,8 @@ function UploadSection() {
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch(
-        "https://intellidoc-backend-ctzp.onrender.com/documents"
-      );
+      const data = await api.getDocuments();
 
-      const data = await response.json();
-
-      console.log("Response Status:", response.status);
       console.log("Response Data:", data);
 
       const fetchedDocs = data.documents || [];
@@ -148,25 +144,17 @@ function UploadSection() {
       onConfirm: async () => {
         setConfirmModal(null);
         try {
-          const response = await fetch(`https://intellidoc-backend-ctzp.onrender.com/document/${documentId}`, {
-            method: "DELETE",
-          });
-
-          const data = await response.json();
-          if (response.ok) {
-            showToast(data.message || "Document deleted successfully.", "success");
-            setDocuments((prev) => prev.filter((d) => d.document_id !== documentId));
-            setDocumentCount((prev) => Math.max(0, prev - 1));
-            if (currentDocumentId === documentId) {
-              setCurrentDocumentId(null);
-              setUploadedDocuments([]);
-            }
-          } else {
-            showToast(data.detail || "Failed to delete document.", "error");
+          const data = await api.deleteDocument(documentId);
+          showToast(data.message || "Document deleted successfully.", "success");
+          setDocuments((prev) => prev.filter((d) => d.document_id !== documentId));
+          setDocumentCount((prev) => Math.max(0, prev - 1));
+          if (currentDocumentId === documentId) {
+            setCurrentDocumentId(null);
+            setUploadedDocuments([]);
           }
         } catch (error) {
           console.error(error);
-          showToast("Error deleting document.", "error");
+          showToast(error.message || "Error deleting document.", "error");
         }
       },
       onCancel: () => setConfirmModal(null),
@@ -174,7 +162,7 @@ function UploadSection() {
   };
 
   const handleDownloadDocument = (documentId) => {
-    window.open(`https://intellidoc-backend-ctzp.onrender.com/download/${documentId}`, "_blank");
+    window.open(api.getDownloadUrl(documentId), "_blank");
     showToast("Starting document download...", "info");
   };
 
@@ -226,18 +214,8 @@ function UploadSection() {
   const executeUpload = async () => {
     setUploading(true);
 
-    const formData = new FormData();
-    selectedFiles.forEach((file) => {
-      formData.append("files", file);
-    });
-
     try {
-      const response = await fetch("https://intellidoc-backend-ctzp.onrender.com/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
+      const data = await api.uploadFiles(selectedFiles);
 
       if (data.error) {
         showToast(data.error, "error");
@@ -277,14 +255,7 @@ function UploadSection() {
     setSearching(true);
 
     try {
-      const response = await fetch(
-        `https://intellidoc-backend-ctzp.onrender.com/semantic-search?query=${encodeURIComponent(
-          searchQuery
-        )}`
-      );
-
-      const data = await response.json();
-
+      const data = await api.semanticSearch(searchQuery);
       setSearchResult(data);
     } catch (err) {
       console.log(err);
@@ -317,22 +288,7 @@ function UploadSection() {
 
     try {
 
-      const response = await fetch(
-        "https://intellidoc-backend-ctzp.onrender.com/ask",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            question: question,
-            document_id: currentDocumentId,
-            provider: aiProvider,
-          }),
-        }
-      );
-
-      const data = await response.json();
+      const data = await api.askQuestion(question, currentDocumentId, aiProvider);
 
       setMessages((prev) => [
         ...prev,
@@ -372,22 +328,7 @@ function UploadSection() {
     setSummarizing(true);
 
     try {
-      const response = await fetch(
-        "https://intellidoc-backend-ctzp.onrender.com/summary",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            document_id: currentDocumentId,
-            provider: aiProvider,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
+      const data = await api.getSummary(currentDocumentId, aiProvider);
       setSummary(data.summary || "No summary generated.");
 
       // Automatically open Summary page
@@ -412,21 +353,7 @@ function UploadSection() {
 
     try {
 
-      const response = await fetch(
-        "https://intellidoc-backend-ctzp.onrender.com/study-notes",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            document_id: currentDocumentId,
-            provider: aiProvider,
-          }),
-        }
-      );
-
-      const data = await response.json();
+      const data = await api.getStudyNotes(currentDocumentId, aiProvider);
 
       setStudyNotes(
         data.study_notes || "No study notes generated."
@@ -510,21 +437,7 @@ function UploadSection() {
 
     try {
 
-      const response = await fetch(
-        "https://intellidoc-backend-ctzp.onrender.com/flashcards",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            document_id: currentDocumentId,
-            provider: aiProvider,
-          }),
-        }
-      );
-
-      const data = await response.json();
+      const data = await api.getFlashcards(currentDocumentId, aiProvider);
 
       const cards = parseFlashcards(
         data.flashcards || ""
@@ -569,23 +482,8 @@ function UploadSection() {
 
     try {
 
-      const response = await fetch(
-        "https://intellidoc-backend-ctzp.onrender.com/question-bank",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            document_id: currentDocumentId,
-            provider: aiProvider,
-          }),
-        }
-      );
+      const data = await api.getQuestionBank(currentDocumentId, aiProvider);
 
-      const data = await response.json();
-
-      console.log("Question Bank Status:", response.status);
       console.log("Question Bank Data:", data);
 
       setQuestionBank(
@@ -617,23 +515,8 @@ function UploadSection() {
 
     try {
 
-      const response = await fetch(
-        "https://intellidoc-backend-ctzp.onrender.com/faq",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            document_id: currentDocumentId,
-            provider: aiProvider,
-          }),
-        }
-      );
+      const data = await api.getFaq(currentDocumentId, aiProvider);
 
-      const data = await response.json();
-
-      console.log("FAQ Status:", response.status);
       console.log("FAQ Data:", data);
 
       setFaq(
@@ -666,23 +549,8 @@ function UploadSection() {
 
     try {
 
-      const response = await fetch(
-        "https://intellidoc-backend-ctzp.onrender.com/meeting-notes",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            document_id: currentDocumentId,
-            provider: aiProvider,
-          }),
-        }
-      );
+      const data = await api.getMeetingNotes(currentDocumentId, aiProvider);
 
-      const data = await response.json();
-
-      console.log("Meeting Notes Status:", response.status);
       console.log("Meeting Notes Data:", data);
 
       setMeetingNotes(
@@ -714,23 +582,8 @@ function UploadSection() {
 
     try {
 
-      const response = await fetch(
-        "https://intellidoc-backend-ctzp.onrender.com/research-notes",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            document_id: currentDocumentId,
-            provider: aiProvider,
-          }),
-        }
-      );
+      const data = await api.getResearchNotes(currentDocumentId, aiProvider);
 
-      const data = await response.json();
-
-      console.log("Research Notes Status:", response.status);
       console.log("Research Notes Data:", data);
 
       setResearchNotes(
@@ -760,22 +613,7 @@ function UploadSection() {
     setLoadingComparison(true);
 
     try {
-      const response = await fetch(
-        "https://intellidoc-backend-ctzp.onrender.com/compare",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            document_id_1: selectedCompareDocs[0],
-            document_id_2: selectedCompareDocs[1],
-            provider: aiProvider,
-          }),
-        }
-      );
-
-      const data = await response.json();
+      const data = await api.compareDocuments(selectedCompareDocs[0], selectedCompareDocs[1], aiProvider);
       console.log("Comparison:", data);
       setComparison(data.comparison || "No comparison generated.");
       setActiveView("comparison");
@@ -796,7 +634,7 @@ function UploadSection() {
     }
 
     const response = await fetch(
-      "https://intellidoc-backend-ctzp.onrender.com/export/pdf",
+      `${BASE_URL}/export/pdf`,
       {
         method: "POST",
         headers: {
@@ -832,7 +670,7 @@ function UploadSection() {
     }
 
     const response = await fetch(
-      "https://intellidoc-backend-ctzp.onrender.com/export/docx",
+      `${BASE_URL}/export/docx`,
       {
         method: "POST",
         headers: {
@@ -1066,7 +904,7 @@ function UploadSection() {
                               title="Download PDF"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                window.open(`https://intellidoc-backend-ctzp.onrender.com/document/${doc.document_id}/download`, "_blank");
+                                window.open(api.getDownloadUrl(doc.document_id), "_blank");
                               }}
                             >
                               ↓
@@ -2048,7 +1886,7 @@ function UploadSection() {
           currentDocumentId={currentDocumentId}
           documents={documents}
           onDownloadDocument={(id) => {
-            window.open(`https://intellidoc-backend-ctzp.onrender.com/document/${id}/download`, "_blank");
+            window.open(api.getDownloadUrl(id), "_blank");
           }}
           onExportPDF={exportPDF}
           onExportDOCX={exportDOCX}

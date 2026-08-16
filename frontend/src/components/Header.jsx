@@ -3,9 +3,8 @@ import {
   Zap, ChevronDown, FileText, Database,
   Upload, Globe, Brain,
 } from "lucide-react";
+import { BASE_URL } from "../api/client";
 import "./Header.css";
-
-const BASE = import.meta.env?.VITE_API_URL || "http://localhost:8000";
 
 function Header({
   documents = [],
@@ -22,7 +21,7 @@ function Header({
 
   // Check VectorDB status
   useEffect(() => {
-    fetch(`${BASE}/documents`)
+    fetch(`${BASE_URL}/documents`)
       .then((r) => r.ok ? setDbReady(true) : setDbReady(false))
       .catch(()  => setDbReady(false));
   }, []);

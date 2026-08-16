@@ -4,9 +4,8 @@ import {
   Layers, Calendar, SortAsc, SortDesc, Filter,
   CheckCircle, Loader2,
 } from "lucide-react";
+import { BASE_URL, api } from "../api/client";
 import "./LibraryView.css";
-
-const BASE = import.meta.env?.VITE_API_URL || "http://localhost:8000";
 
 function LibraryView({
   documents = [],
@@ -52,7 +51,7 @@ function LibraryView({
   };
 
   const handleDownload = (docId) => {
-    window.open(`${BASE}/download/${docId}`, "_blank");
+    window.open(api.getDownloadUrl(docId), "_blank");
     showToast("Starting download…", "info");
   };
 
